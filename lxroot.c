@@ -411,16 +411,16 @@ int  is_command  ( const char * s )  {    //  --------------------  is_command
   return  list_contains ( commands, s );  }
 
 
-void  arg_chdir  ( State * st )  {    //  ---------------------  chdir_process
+void  arg_chdir  ( State * st )  {    //  -------------------------  arg_chdir
   Chdir ( st, arg_consume_dir ( st ) );  }
 
 
-void  arg_command  ( State * st )  {    //  -----------------  command_process
+void  arg_command  ( State * st )  {    //  ---------------------  arg_command
   if       ( eq_consume ( st, "chdir"   ) )  {  arg_chdir ( st );        }
   else if  ( eq_consume ( st, "pivot"   ) )  {  do_pivot  ( st );        }
   else if  ( eq_consume ( st, "trace"   ) )  {  st -> trace_flag  =  1;  }
   else if  ( eq_consume ( st, "untrace" ) )  {  st -> trace_flag  =  0;  }
-  else  die ( "command_process  bad command  %s", (st -> arg) );  }
+  else  die ( "arg_command  bad command  %s", (st -> arg) );  }
 
 
 void  arg_dir  ( State * st )  {    //  -----------------------------  arg_dir
@@ -450,7 +450,7 @@ void  arg_file  ( State * st )  {    //  ---------------------------  arg_file
 
 void  arg_option ( State * st )  {    //  ------------------------  arg_option
   assert ( is_option ( st -> arg ) );
-  trace ( "option_process  %s", st -> arg );
+  trace ( "arg_option  %s", st -> arg );
   if  ( strchr ( st -> arg, 'n' ) )  {  st -> opt_n  =  1;  }
   if  ( strchr ( st -> arg, 'r' ) )  {  st -> opt_r  =  1;  }
   arg_next ( st );  }
