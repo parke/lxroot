@@ -16,15 +16,19 @@ softawre environments can be used to:
 
 ====  Usage
 
-Usage:  lxroot  [-nprx]  [[.]/path]  [profile]  [ -- [env] command ]
+Usage:  lxroot  [-nprx]  [ path | @profile ]  [ -- [env] command ]
 
-  -n     provide network access (via CLONE_NEWNET == 0)
-  -p     provide access to pulseaudio (may only work on Ubuntu)
-  -r     simulate root user (map uid and gid to zero)
-  -x     provide X11 access (mount --bind /tmp/.X11-unix)
-  env    name=value ...
+  common options
+    -n     provide network access (via CLONE_NEWNET == 0)
+    -p     provide access to pulseaudio (may only work on Ubuntu?)
+    -r     simulate root user (map uid and gid to zero)
+    -x     provide X11 access (mount --bind /tmp/.X11-unix)
+    env    name=value ...
 
-/path or ./path is the new root direcotry.
+  other options
+    --version    display version information
+
+path is the new root direcotry.
 
 profile is currently an undocmunted feature that allows multiple
 directories to be mounted (via binds) in new locations.  For example,
@@ -53,11 +57,9 @@ $  git  clone  https://github.com/parke/lxroot.git
 $  cd  lxroot
 $  g++  -Wall  -Werror  lxroot.c  -o lxroot
 $  wget  'http://dl-cdn.alpinelinux.org/alpine/v3.11/releases/x86_64/alpine-minirootfs-3.11.6-x86_64.tar.gz'
-$  mkdir  alpine
-$  cd  alpine
+$  mkdir  alpine-3.11.6
+$  cd  alpine-3.11.6
 $  tar  xzf  ../alpine-minirootfs-3.11.6-x86_64.tar.gz
-$  cp  -i  /etc/group        etc/
-$  cp  -i  /etc/passwd       etc/
 $  cp  -i  /etc/resolv.conf  etc/
 $  ../lxroot  -nr  .
 
@@ -65,19 +67,42 @@ The above ../lxroot command will create an "lxroot environment" and
 run /bin/sh inside that environment.  Your prompt should change to
 something like this:
 
-root  lx(todo)  $
+user  -nr  ./alpine-3.11.6  ~
+
+"user" will be your username from outside of the lxroot.  "-nr" means
+that lxroot has network access and appears (inside the lxroot) to have
+uid and gid of zero.  "./alpine-3.11.6" is the "name" of the lxroot.
+In this case, it is the name of the directory that contains the
+lxroot.  '~' is the current working directory.
 
 You can now run commands inside the lxroot:
 
-root  lx(todo)  id
+user  -nr  ./alpine-3.11.6  ~  id
 uid=0(root) gid=0(root) groups=0(root)
 
-root  lx(todo)  $  pwd
+user  -nr  ./alpine-3.11.6  ~  pwd
 /root
 
-root  lx(todo)  $  apk update
+hack  -nr  ./alpine-3.11.6  ~  echo "$PS1"
+\[\e[0;36m\]hack  \[\e[0;91m\]-nr\[\e[0;36m\]  ./alpine-3.11.6  \W\[\e[0;39m\]  
 
-root  lx(todo)  $  apk add bash
+user  -nr  ./alpine-3.11.6  ~  apk update
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.11/main/x86_64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.11/community/x86_64/APKINDEX.tar.gz
+v3.11.6-90-g318b6c3504 [http://dl-cdn.alpinelinux.org/alpine/v3.11/main]
+v3.11.6-90-g318b6c3504 [http://dl-cdn.alpinelinux.org/alpine/v3.11/community]
+OK: 11271 distinct packages available
+
+user  -nr  ./alpine-3.11.6  ~  apk add bash
+(1/4) Installing ncurses-terminfo-base (6.1_p20200118-r4)
+(2/4) Installing ncurses-libs (6.1_p20200118-r4)
+(3/4) Installing readline (8.0.1-r0)
+(4/4) Installing bash (5.0.11-r1)
+Executing bash-5.0.11-r1.post-install
+Executing busybox-1.31.1-r9.trigger
+OK: 8 MiB in 18 packages
+
+user  -nr  ./alpine-3.11.6  ~
 
 
 ====  Example  -  Arch Linux
@@ -162,20 +187,6 @@ Type ".help" for more information.
 >
 
 
-
-====  Example  -  Artix Linux
-
-Artix is similar to Void, except two files need to be unsquashed.
-
-$  unsquashfs  -no
-$  unsquashfs  -no  -f
-$  mkdir  -p  /mnt/var/lib/pacman/
-
-#  pacman-key  --init
-#  pacman-key  --populate  archlinux
-#  pacman-key  --populate  artix
-
-
 ====  Example  -  Void Linux
 
 $  git  clone  https://github.com/parke/lxroot.git
@@ -193,6 +204,9 @@ run /bin/sh inside that environment.  Your prompt should change to
 something like this:
 
 root  lx(todo)  $
+
+(Note, the above prompt is out of date.  The prompt should be similar
+to the prompt described in the Alpine Linux example.)
 
 You can now run commands inside the lxroot:
 
