@@ -7,7 +7,7 @@
 //  Distributed under GPLv2 (see end of file) WITHOUT ANY WARRANTY.
 
 
-#define  LXROOT_VERSION  "0.0.20200521.xxxx"
+#define  LXROOT_VERSION  "0.0.20200626.0000"
 
 
 //  compile with:  g++  -Wall  -Werror  lxroot.c  -o lxroot
@@ -43,14 +43,17 @@
 void  usage  ()  {    //  ---------------------------------------------  usage
   printe (
 "\n"
-"usage:  lxroot  [-nprx]  [[.]/path]  [profile]  [ -- [env] command ]\n"
+"usage:  lxroot  [-nprx]  [ path | @profile ]  [ -- [env] command ]\n"
 "\n"
-"  -n     provide network access (via CLONE_NEWNET == 0)\n"
-"  -p     provide access to pulseaudio (may only work on Ubuntu)\n"
-"  -r     simulate root user (map uid and gid to zero)\n"
-"  -x     provide X11 access (mount --bind /tmp/.X11-unix)\n"
-"  env    name=value ...\n"
-
+"  common options\n"
+"    -n     provide network access (via CLONE_NEWNET == 0)\n"
+"    -p     provide access to pulseaudio (may only work on Ubuntu?)\n"
+"    -r     simulate root user (map uid and gid to zero)\n"
+"    -x     provide X11 access (mount --bind /tmp/.X11-unix)\n"
+"    env    name=value ...\n"
+"\n"
+"  other options\n"
+"    --version    display version information\n"
 	  );  }
 
 
@@ -67,6 +70,11 @@ void  usage  ()  {    //  ---------------------------------------------  usage
 #define  die2( format, ... )  {						\
   fprintf ( stderr, "lxroot  error  " format "\n", ##__VA_ARGS__ );	\
   exit ( 1 );  }
+
+
+//  macro  warn  ------------------------------------------------  macro  warn
+#define  warn( format, ... )  {						\
+  fprintf ( stderr, "lxroot  warn   " format "\n", ##__VA_ARGS__ );  }
 
 
 template < typename T >    //  ----------------------------  template  assert2
@@ -146,6 +154,16 @@ struct  mstr  {
 
   mstr  operator +  ( str & b )  const  {  return  mstr ( * this, b );  }
 
+  mstr &  operator +=  ( str & b )  {
+    * this  =  mstr ( * this, b );  return  * this;  }
+
+
+  mstr  basename  ()  const  {    //  ----------------------  mstr :: basename
+    if  ( s == nullptr )  {  return  nullptr;  }
+    const char *  found  =  rindex ( s, '/' );
+    if  ( found )  {  return  mstr ( found + 1 );  }
+    return  * this;  }
+
 
   const char *  begin  ()  const  {    //  --------------------  mstr :: begin
     return  s;  }
@@ -190,7 +208,7 @@ struct  mstr  {
     return  min + strspn ( s + min, accept );  }
 
 
-  template < typename... T >    //  -------------------------  mstr :: sprintf
+  template < typename... T >    //  ------------------------  mstr :: snprintf
   void  snprintf  ( const char * format, size_t lim, T... args )  {
     char    buf_s[lim];  :: snprintf ( buf_s, lim, format, args... );
     size_t  buf_n  =  strlen ( buf_s );
@@ -201,6 +219,10 @@ struct  mstr  {
     if  ( s )  {  free ( (void*) s );  }
     s  =  new_s;
     n  =  strlen ( s );  }
+
+
+  void  snprintf  ( const char * format, size_t lim )  {    //  ----  snprintf
+    snprintf ( format, lim, nullptr );  }
 
 
   bool  startswith  ( str & expect )  const  {    //  ----  mstr :: starstwith
@@ -286,6 +308,10 @@ struct  Lib  {    //  -------------------------------------------  struct  Lib
     return  getenv ( "HOME" );  }
 
 
+  static bool  is_busybox ( str & path )  {    //  --------  Lib :: is_busybox
+    return  is_link ( path )  &&  readlink ( path ) == "/bin/busybox";  }
+
+
   static bool  is_dir  ( const char * path )  {    //  --------  Lib :: is_dir
     struct stat  st;
     if  (  path  &&  stat ( path, & st ) == 0  &&  st .st_mode & S_IFDIR  )  {
@@ -314,10 +340,11 @@ struct  Lib  {    //  -------------------------------------------  struct  Lib
 
   static bool  is_link  ( const char * path )  {    //  ------  Lib :: is_link
     struct stat  st;
-    if  (  path  &&  lstat ( path, & st ) == 0  &&  st .st_mode & S_IFLNK  )  {
-      return  1;  }
+    if  (  path
+	   &&  lstat ( path, & st ) == 0
+	   &&  S_ISLNK ( st .st_mode )  )  {  return  true;  }
     errno  =  ENOENT;
-    return  0;  }
+    return  false;  }
 
 
   static str  readlink  ( str path )  {    //  --------------  Lib :: readlink
@@ -339,38 +366,6 @@ struct  Lib  {    //  -------------------------------------------  struct  Lib
 
   static str  realpath  ( const char * const path )  {    //  ------  realpath
     return  str :: claim ( :: realpath ( path, nullptr ) );  }
-
-
-  static mstr  which  ( str & program )  {    //  --------------  Lib :: which
-    mstr  s  =  getenv ( "PATH" );
-    while  ( s )  {
-
-      /*  20200416
-      printf ( "\n" );
-      printf ( "which  path  >%s<\n", s.s );
-      mstr  a  =  s.head(":");
-      printf ( "which  a     >%s<\n", a.s );
-      mstr  b  =  "/";
-      printf ( "which  b     >%s<\n", b.s );
-      mstr  c  =  a + b;
-      printf ( "which  c     >%s<\n", c.s );
-      */
-
-    mstr  path  =  s.head(":") + "/" + program;
-
-    //  printf ( "which  head  >%s<\n", path.s );
-
-    struct stat  st;
-    if  (  stat ( path, & st ) == 0
-	   &&  S_ISREG ( st .st_mode )
-	   &&  access ( path, X_OK ) == 0  )  {  return  path;  }
-
-    //  printf ( "which  tail  1  %s\n", s.s );
-    s  =  s.tail(":");
-    //  printf ( "which  tail  2  %s\n", s.s );
-
-    ;;;  }
-  return  NULL;  }
 
 
 };    //  end  struct  Lib  --------------------------------  end  struct  Lib
@@ -433,6 +428,10 @@ public:
     return  peek() == expect;  }
 
 
+  void  print  ()  const  {    //  --------------------------  Tokens :: print
+    for  ( auto & e : t )  {  printe ( ">%s<\n", e.s );  }  }
+
+
   void  read_from  ( const char * const * argv )  {    //  ---------  readfrom
     for  (  ;  * argv;  argv ++  )  {  t .push_back ( * argv );  }  }
 
@@ -441,7 +440,13 @@ public:
     FILE *  f  =  fopen ( path, "r" );
     if  ( f == nullptr )  {  die_pe ( "read_from  %s", path );  }
     mstr    s;
-    while  ( s  =  token_read ( f )  )  {  t .push_back ( s );  }
+    auto  next         =  [&]  ()  {  s  =  token_read ( f );  };
+    auto  skip_to_eol  =  [&]  ()  {
+      while  ( s && s != "\n" )  {  next();  }  };
+    for  ( next();  s;  )  {
+      if       ( s == "\n" )  {  next();  }
+      else if  ( s == "#"  )  {  skip_to_eol();       next();  }
+      else                    {	 t .push_back ( s );  next();  }  }
     assert ( fclose ( f ) == 0 );  }
 
 
@@ -460,10 +465,9 @@ public:
     auto  next  =  [&]  ()  {  c  =  fgetc ( f );  return  c != EOF;  };
     auto  undo  =  [&]  ()  {  ungetc ( c, f );  };
 
-    do  {  next();  }  while  (  c == ' '  ||  c == '\n'  ||  c == '\t'  );
+    do  {  next();  }  while  (  c == ' '  ||  c == '\t'  );
     if  (  c ==  EOF  )  {  return  nullptr;  }
-    //  20200423
-    //  if  (  c == '\n'  )  {  * this  =  "\n";     return  * this;  }
+    if  (  c == '\n'  )  {  return "\n";  }
 
     std :: string  buf  ( 1, c );
     while  ( next() )  {
@@ -556,7 +560,7 @@ struct  Profile  :  Lib  {    //  ---------------------------  struct  Profile
 	       readonly  ?  "ro"  :  "rw",  recursive  ?  "rec  "  :  "",
 	       dst.s, src.s );  }  };
 
-  mstr  name;
+  mstr  name;                   //  the name of the profile
   mstr  exec_path;
   Vec   exec_argv;
   bool  opt_net    =  false;    //  provide network interfaces
@@ -587,8 +591,9 @@ struct  Profile  :  Lib  {    //  ---------------------------  struct  Profile
 
 
   void  print  ( const PBind & b, const char * s )  const  {    //  ---  print
-    printe ( "%sbind  %2s  %s  %s\n", s, b.readonly  ?  ""  :  "rw",
-	     b.dst.s, b.src.s );  }
+    const char *  ro   =  b.readonly   ?  "ro"     :  "rw"  ;
+    const char *  rec  =  b.recursive  ?  "rec  "  :  ""    ;
+    printe ( "%sbind  %2s  %s%s  %s\n", s, ro, rec, b.dst.s, b.src.s );  }
 
 
   void  print  ()  const  {    //  -------------------------  Profile :: print
@@ -647,25 +652,35 @@ struct  Profile  :  Lib  {    //  ---------------------------  struct  Profile
 
 
   void  read_argv_path  ( Tokens & t )  {    //  -------------  read_argv_path
-    str  path  =  realpath ( t.next() );
-    if  ( is_dir ( path ) )  {
+    if  ( is_dir ( t.peek() ) )  {
+      str  path  =  realpath ( t.next() );
       PBind b;  b.src=path;  b.dst="/";  b.readonly=false;
       binds.push_back(b);  }
-    else  {  die2 ( "read_argv_path  expected directory  %s", path.s );  }  }
+    else  {  die2 ( "directory not found  %s", t.peek().s );  }  }
 
 
   void  read_argv_profile  ( Tokens & t )  {    //  -------  read_argv_profile
     if  ( name )  { die2 ( "read_argv_profile  unexpected second profile  %s",
 			   t.peek().s );  }
-    name  =  t.next();  config_load_profile();  }
+    if  ( t.spn ("@") )  {
+      name  =  t .next() .sub ( 1 );
+      config_load_profile();
+      return;  }
+    die2 ( "read_argv_profile  bad profile  %s", t.peek().s );  }
 
 
   void  read_argv  ( Tokens & t )  {    //  -----------------------  read_argv
     while  ( t )  {
-      if       ( t.is("--")  )  {  read_argv_command(t);  }
-      else if  ( t.spn("-")  )  {  read_argv_option(t);   }
-      else if  ( t.spn("./") )  {  read_argv_path(t);     }
-      else                      {  read_argv_profile(t);  }  }  }
+      if       ( t.is("--version") )  {  version_print();  }
+      else if  ( t.is("--") )  {  read_argv_command(t);  }
+      else if  ( t.spn("-") )  {  read_argv_option(t);   }
+      else if  ( t.spn("@") )  {  read_argv_profile(t);  }
+      else                     {  read_argv_path(t);     }  }  }
+
+
+  void  version_print()  {    //  ------------------  Profile :: version_print
+    printe ( "lxroot  version  %s\n", LXROOT_VERSION );
+    exit ( 0 );  }
 
 
   static void  config_read_profile  ( Tokens & t, Profile & p )  {    //  ----
@@ -990,7 +1005,7 @@ struct  Launcher  :  State, Profile  {    //  --------------  struct  Launcher
 	Bind ( st, pulse_dir, pivot + pulse_dir, 0 );
 	return;  }
       else  {
-	die2 ( "bind_opt_pulse()  XDG_RUNTIME_DIR not set\n" );  }  }  }
+	warn ( "bind_opt_pulse()  XDG_RUNTIME_DIR not set\n" );  }  }  }
 
 
   void  bind_opt_x11  ()  {    //  -----------------  Launcher :: bind_opt_x11
@@ -1097,10 +1112,11 @@ struct  Launcher  :  State, Profile  {    //  --------------  struct  Launcher
   void  bind_pbinds  ()  {    //  -------------------  Launcher :: bind_pbinds
     for  (  const PBind & b  :  binds  )  {
       str            src    =  bind_src ( b.src, b.dst );
+      str            dst    =  pivot == "/"  ?  b.dst  :  pivot + b.dst;
       unsigned long  flags  =  0;
       flags  |=  (  b.recursive  ?  MS_REC     :  0  );
       flags  |=  (  b.readonly   ?  MS_RDONLY  :  0  );
-      Bind(  st,  src,  pivot + b.dst,  flags  );  }  }
+      Bind(  st,  src,  dst,  flags  );  }  }
 
 
   void  do_bind  ()  {    //  ---------------------------  Launcher :: do_bind
@@ -1145,29 +1161,12 @@ struct  Launcher  :  State, Profile  {    //  --------------  struct  Launcher
   void  exec_prepare_argv  ()  {    //  -------  Launcher :: exec_prepare_argv
 
     auto  try_shell  =  [this]  ( str & shell )  {
-
       if  ( exec_path or not shell )  {  return;  };
-
       if  ( is_file ( shell )  and  access ( shell.s, X_OK ) == 0 )  {
-
 	exec_path  =  shell;
 	exec_argv .push_back ( shell );
-
 	if  ( shell == "/bin/bash" )  {
-	  exec_argv .push_back ( "--norc" );
-	  mstr  prompt;
-	  const char *  format  =
-	    "\\n\\[\\e[0;96m\\]\\u  lx(%s)  \\W\\[\\e[0;39m\\]  "  ;
-	  //  todo  fix name when there is no profile.
-	  prompt .snprintf ( format, 128, name.s );
-	  env [ "PS1" ]  =  prompt;  }
-
-	if  ( shell == "/bin/sh" )  {
-	  mstr  prompt;
-	  str   user  =  env.get("USER")  ?  env.get("USER")  :  "user"  ;
-	  const char *  format  = "\n%s  lx(%s)  $  "  ;
-	  prompt .snprintf ( format, 128, user.s, "todo" );
-	  env [ "PS1" ]  =  prompt;  }  }  };
+	  exec_argv .push_back ( "--norc" );  }  }  };
 
     try_shell ( env .get ( "SHELL" ) );
     try_shell ( "/bin/bash" );
@@ -1200,12 +1199,47 @@ struct  Launcher  :  State, Profile  {    //  --------------  struct  Launcher
     if  ( opt_x11 && ( s = getenv ( "DISPLAY" ) ) )  {    //  set DISPLAY
       env [ "DISPLAY" ]  =  s;  }
 
-
-
     if  ( env .count ( "PATH" ) == 0 )  {
       env [ "PATH" ]  =
 	(  "/usr/local/bin:"   "/usr/bin:"   "/bin:"
 	   "/usr/local/sbin:"  "/usr/sbin:"  "/sbin"  );  }
+    ;;;  }
+
+
+  void  exec_prepare_prompt  ()  {    //  ---  Launcher :: exec_prepare_prompt
+
+    if  (  exec_path == "/bin/bash"  ||  is_busybox ( exec_path )  )  {
+
+      str   term  =  getenv ( "TERM" );
+      str   user  =  getenv ( "USER" );
+      mstr  opts  =  nullptr;
+      str   host  =  name  ?  "@" + name  :  "./" + pivot .basename()  ;
+
+      if  (  opt_net  ||  opt_root  ||  opt_x11  )  {
+	opts  =  "-";
+	if  ( opt_net  )  {  opts  +=  "n";  }
+	if  ( opt_root )  {  opts  +=  "r";  }
+	if  ( opt_x11  )  {  opts  +=  "x";  }  }
+
+      mstr  ps1;
+
+      if  ( term  ==  "xterm-256color" )  {    //  set terminal title
+	ps1  +=  "\\[\\e]0;" + user + "  ";
+	if  ( opts )  {  ps1  +=  opts  +  "  ";  }
+	ps1  +=  host  +  "  \\W\\007\\]";  }
+
+      //nst char *  bright_cyan  =  "\\[\\e[0;96m\\]";
+      const char *  bright_red   =  "\\[\\e[0;91m\\]";
+      const char *  cyan         =  "\\[\\e[0;36m\\]";
+      //nst char *  red          =  "\\[\\e[0;31m\\]";
+      const char *  normal       =  "\\[\\e[0;39m\\]";
+
+      ps1  +=  str("\n") + cyan + user + "  ";
+      if  ( opts )  {  ps1  +=  bright_red + opts + cyan + "  ";  }
+      ps1  +=  host + "  \\W" + normal + "  ";
+      env [ "PS1" ]  =  ps1;  }
+
+    /*  20200626  todo  add a custom prompt for other shells  */
 
     ;;;  }
 
@@ -1221,12 +1255,13 @@ struct  Launcher  :  State, Profile  {    //  --------------  struct  Launcher
     //  child process, to ensure both calls finish before execve() is
     //  called.
 
-    if  ( binds.size() )  {
+    if  ( binds .size() )  {
       Mount    (  st,  "proc",  "/proc",  "proc"  );
       Umount2  (  st,  put_old,  MNT_DETACH       );  }
 
     exec_prepare_env();
     exec_prepare_argv();
+    exec_prepare_prompt();
     Execve ( st, exec_path, exec_argv, env );  }
 
 
@@ -1236,9 +1271,9 @@ struct  Launcher  :  State, Profile  {    //  --------------  struct  Launcher
     st          =  this;
     trace_flag  =  opt_trace;
 
-    //  20200507
-    //  printe ("\n");  Profile :: print();  printe ("\n");
-    //  trace_flag  =  true;
+    if  ( false )  {
+      printe ("\n");  Profile :: print();  printe ("\n");
+      trace_flag  =  true;  }
 
     do_unshare();  do_uid_map();
     if  ( binds.size() )  {  do_bind();  do_pivot();  }

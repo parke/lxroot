@@ -80,6 +80,102 @@ root  lx(todo)  $  apk update
 root  lx(todo)  $  apk add bash
 
 
+====  Example  -  Arch Linux
+
+Download the Arch Linux .iso file.  I assume you already know how to
+download it.  The file I downloaded is:
+archlinux-2020.06.01-x86_64.iso
+
+Next, we extract the chroot installation environment from the .iso
+file.  This is a two step process.  We will use 7z to exrcat the .sfs
+file from the .iso file.  We will then use unsquashfs to unsquash the
+.sfs file.
+
+For details on 7z, see:
+https://www.tecmint.com/extract-files-from-iso-files-linux/
+
+On Ubuntu, if you need to install 7zip, run:
+sudo  apt-get  install  p7zip-full
+
+On Ubuntu, if you need to install unsquasfs, run:
+sudo  apt-get  install  squashfs-tools
+
+$  7z  l  archlinux-2020.06.01-x86_64.iso  |  grep  sfs
+$  7z  x  archlinux-2020.06.01-x86_64.iso  arch/x86_64/airootfs.sfs
+$  unsquashfs  -no  arch/x86_64/airootfs.sfs
+$  rm  -r  arch
+
+$  rm  squashfs-root/etc/resolv.conf
+$  cp  /etc/resolv.conf  squashfs-root/etc/
+$  lxroot  -nr  squashfs-root
+
+#  pacman-key  --init
+#  pacman-key  --populate  archlinux
+#  mkdir  -p  /mnt/etc/pacman.d
+#  mkdir  -p  /mnt/var/lib/pacman/
+#  cp  -a  /etc/pacman.d/gnupg  /mnt/etc/pacman.d/
+
+Edit /etc/pacman.d/mirrorlist and add a line at the top to specify a
+server near your location.
+
+#  pacman  -r /mnt  -Sy  base
+
+(Aside:  Instead of "base", consider installing only "pacman".  This
+will avoid part (most but not all?) of systemd.)
+
+The above command will ask the following twice:
+downloading required keys...
+:: Import PGP key 3B94A80E50A477C7, "Jan Alexander Steffens (heftig) <heftig@archlinux.org>"? [Y/n]
+
+Both times, I pressed: "y" and then enter.
+
+The above command will then freeze after installing gnupg.  I do not
+know why the command freezes.  I pressed ^C, and then ran the same
+command again.  This time the command will print some other warnings,
+but it will exit.
+
+We have now installed the base of Arch Linux.  We will now exit the
+lxroot.
+
+#  exit
+
+We need to edit the new mirrorlist and specify a server.
+
+$  vi  squashfs-root/mnt/etc/pacman.d/mirrorlist
+$  cp  /etc/resolv.conf  squashfs-root/mnt/etc/
+
+We now enter an lxroot in the /mnt directory.
+
+$  lxroot  -nr  squashfs-root/mnt/
+
+Inside the lxroot, your prompt should be:
+user  -nr  @mnt  ~
+
+You should now be able to use pacman to install packages.  For
+example, to install nodejs and npm:
+
+user  -nr  @mnt  ~  pacman  -Sy  nodejs  npm
+
+user  -nr  @mnt  ~  node
+Welcome to Node.js v14.4.0.
+Type ".help" for more information.
+>
+
+
+
+====  Example  -  Artix Linux
+
+Artix is similar to Void, except two files need to be unsquashed.
+
+$  unsquashfs  -no
+$  unsquashfs  -no  -f
+$  mkdir  -p  /mnt/var/lib/pacman/
+
+#  pacman-key  --init
+#  pacman-key  --populate  archlinux
+#  pacman-key  --populate  artix
+
+
 ====  Example  -  Void Linux
 
 $  git  clone  https://github.com/parke/lxroot.git
