@@ -83,8 +83,8 @@ uid=0(root) gid=0(root) groups=0(root)
 user  -nr  ./alpine-3.11.6  ~  pwd
 /root
 
-hack  -nr  ./alpine-3.11.6  ~  echo "$PS1"
-\[\e[0;36m\]hack  \[\e[0;91m\]-nr\[\e[0;36m\]  ./alpine-3.11.6  \W\[\e[0;39m\]  
+user  -nr  ./alpine-3.11.6  ~  echo "$PS1"
+\[\e[0;36m\]user  \[\e[0;91m\]-nr\[\e[0;36m\]  ./alpine-3.11.6  \W\[\e[0;39m\]  
 
 user  -nr  ./alpine-3.11.6  ~  apk update
 fetch http://dl-cdn.alpinelinux.org/alpine/v3.11/main/x86_64/APKINDEX.tar.gz
