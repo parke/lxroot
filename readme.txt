@@ -1,15 +1,19 @@
 lxroot is a rootless alternative to chroot.
 
-lxroot allows non-root users to create custom software environments
-via the "user namespace" capabilities of the Linux kernel.  These
+lxroot allows a non-root user to create custom software environments
+via the "user namespace" capability of the Linux kernel.  These
 softawre environments can be used to:
 
-  -  install, build, and run software packages
+  -  run a rolling Linux distro's userland on a non-rolling host system
 
-  -  create clean, controlled and isolated environments for compiling
-       and running software
+  -  run a legacy userland on a modern Linux system
 
-  -  run legacy software on modern systems
+  -  create clean, controlled and isolated environments for installing
+       building, and/or running software packages
+
+  -  deny software access to the network
+
+  -  limit access to the filesystem
 
   -  possibly other purposes, as well
 
@@ -23,7 +27,7 @@ Usage:  lxroot  [-nprx]  [ path | @profile ]  [ -- [env] command ]
     -p     provide access to pulseaudio (may only work on Ubuntu?)
     -r     simulate root user (map uid and gid to zero)
     -x     provide X11 access (mount --bind /tmp/.X11-unix)
-    env    name=value ...
+    env    name=value ...    (set environment variables)
 
   other options
     --version    display version information
@@ -33,14 +37,14 @@ path is the new root direcotry.
 profile is currently an undocmunted feature that allows multiple
 directories to be mounted (via binds) in new locations.  For example,
 you could bind directory A to /, and then bind directory B to
-/home/user.  Some directories can be read-only, while others can be
-read-write.  Please contact me if you have questions about profiles.
+/home/user.  You can also specify which directories should be
+read-only.  Please contact me if you have questions about profiles.
 
 Environment variables may be specified via name=value.
 
-Note:  It is possible to nest a child lxroot environment inside of a
-parent lxroot environment (up to the nesting limit imposed by the
-Linux kernel).
+Note:  It is possible to run lxroot inside of an lxroot environment,
+thereby creating nested environments (up to the nesting limit imposed
+by the Linux kernel).
 
 
 ====  Examples
@@ -150,7 +154,7 @@ will avoid part (most but not all?) of systemd.)
 
 The above command will ask the following twice:
 downloading required keys...
-:: Import PGP key 3B94A80E50A477C7, "Jan Alexander Steffens (heftig) <heftig@archlinux.org>"? [Y/n]
+:: Import PGP key 3B94A80E50A477C7, "Jan Alexander Steffens (heftig) <[snip]>"? [Y/n]
 
 Both times, I pressed: "y" and then enter.
 
@@ -174,14 +178,14 @@ We now enter an lxroot in the /mnt directory.
 $  lxroot  -nr  squashfs-root/mnt/
 
 Inside the lxroot, your prompt should be:
-user  -nr  @mnt  ~
+user  -nr  ./mnt  ~
 
 You should now be able to use pacman to install packages.  For
 example, to install nodejs and npm:
 
-user  -nr  @mnt  ~  pacman  -Sy  nodejs  npm
+user  -nr  ./mnt  ~  pacman  -Sy  nodejs  npm
 
-user  -nr  @mnt  ~  node
+user  -nr  ./mnt  ~  node
 Welcome to Node.js v14.4.0.
 Type ".help" for more information.
 >
@@ -203,25 +207,25 @@ The above ../lxroot command will create an "lxroot environmont" and
 run /bin/sh inside that environment.  Your prompt should change to
 something like this:
 
-root  lx(todo)  $
+user  -nr  ./void  ~
 
 (Note, the above prompt is out of date.  The prompt should be similar
 to the prompt described in the Alpine Linux example.)
 
 You can now run commands inside the lxroot:
 
-root  lx(todo)  $  xbps-install -S
+user  -nr  ./void  ~  xbps-install -S
 
-root  lx(todo)  $  xbps-install -Su
+user  -nr  ./void  ~  xbps-install -Su
 
-root  lx(todo)  $  xbps-install -Su
+user  -nr  ./void  ~  xbps-install -Su
 
-root  lx(todo)  $  which htop
+user  -nr  ./void  ~  which htop
 which: no htop in (/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin)
 
-root  lx(todo)  $  xbps-install -Su htop
+user  -nr  ./void  ~  xbps-install -Su htop
 
-root  lx(todo)  $  htop
+user  -nr  ./void  ~  htop
 
 
 ====  Exmaple  -  Debian or Ubuntu
