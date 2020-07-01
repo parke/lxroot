@@ -23,14 +23,14 @@ run one or more programs inside that namespace.  Lxroot can be used to:
 
 ====  Usage
 
-Usage:  lxroot  [-nprx]  [ path | @profile ]  [ -- [env] command ]
+Usage:  lxroot  [-nprx]  [ path | @profile ]  [ -- [n=v] command ]
 
   common options
     -n     provide network access (via CLONE_NEWNET == 0)
     -p     provide access to pulseaudio (may only work on Ubuntu?)
     -r     simulate root user (map uid and gid to zero)
     -x     provide X11 access (mount --bind /tmp/.X11-unix)
-    env    name=value ...    (set environment variables)
+    n=v    name=value ...    (set environment variables)
 
   other options
     --version    display version information
