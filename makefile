@@ -1,2 +1,2 @@
-CPPFLAGS ?= -Wall
-lxroot: lxroot.cpp
+CPPFLAGS  ?=  -Wall  -Werror
+lxroot:  lxroot.cpp

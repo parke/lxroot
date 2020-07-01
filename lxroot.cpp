@@ -7,10 +7,35 @@
 //  Distributed under GPLv2 (see end of file) WITHOUT ANY WARRANTY.
 
 
-#define  LXROOT_VERSION  "0.0.20200626.0000"
+#define  LXROOT_VERSION  "0.0.20200701.0000"
 
 
-//  compile with:  g++  -Wall  -Werror  lxroot.c  -o lxroot
+//  compile with:  g++  -Wall  -Werror  lxroot.cpp  -o lxroot
+
+
+//  Welcome to the source code for lxroot.
+//
+//  The code is organized as a series of classes, from low level to
+//  high level, as follows:
+//
+//  struct mstr is a mutable string.
+//  struct Lib contains generally useful functions.
+//  class Tokens assists with parsing argv and config files.
+//  class Vec is a vector of mstr.
+//  class Env manages environment variables.
+//  struct Profile defines a chroot environment.
+//  class Opender wraps opendir(), readdir() and closedir().
+//  struct State stores data used by the system call wrappers.
+//
+//  The system call wrappers (which are not in a class) provide
+//  standardized error handling and error reporting of syscalls.
+//
+//  struct Launcher creates a Linux user namespace as defined by a
+//  Profile.  Launcher then exec()s a process inside the namespace.
+//
+//  First time readers may want to start by reading the source code
+//  for struct Launcher and then reading into the lower level classes
+//  as needed.
 
 
 #include  <dirent.h>
@@ -43,14 +68,14 @@
 void  usage  ()  {    //  ---------------------------------------------  usage
   printe (
 "\n"
-"usage:  lxroot  [-nprx]  [ path | @profile ]  [ -- [env] command ]\n"
+"usage:  lxroot  [-nprx]  [ path | @profile ]  [ -- [n=v] command ]\n"
 "\n"
 "  common options\n"
 "    -n     provide network access (via CLONE_NEWNET == 0)\n"
 "    -p     provide access to pulseaudio (may only work on Ubuntu?)\n"
 "    -r     simulate root user (map uid and gid to zero)\n"
 "    -x     provide X11 access (mount --bind /tmp/.X11-unix)\n"
-"    env    name=value ...\n"
+"    n=v    set one or more environment variables\n"
 "\n"
 "  other options\n"
 "    --version    display version information\n"
@@ -1288,7 +1313,7 @@ struct  Launcher  :  State, Profile  {    //  --------------  struct  Launcher
 int  main  ( const int argc, const char * const argv[] )  {    //  -----  main
   if  ( argc == 1 )  {  usage();  return  1;  }
   Launcher l;  Tokens t (argv,1);  l.launch(t);
-  printe ( "lxroot  error  launch() return unexpectedly\n" );
+  printe ( "lxroot  error  launch() returned unexpectedly\n" );
   return  1;  }
 
 
