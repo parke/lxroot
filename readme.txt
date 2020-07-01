@@ -1,12 +1,15 @@
-lxroot is a rootless alternative to chroot.
+Lxroot is a clone of chroot, however lxroot does not require root
+access.
 
-lxroot allows a non-root user to create custom software environments
-via the "user namespace" capability of the Linux kernel.  These
-softawre environments can be used to:
+Lxroot allows a non-root user to quickly and easily create a
+chroot-like environment (technically a Linux user namespace) and then
+run one or more programs inside that namespace.  Lxroot can be used to:
 
   -  run a rolling Linux distro's userland on a non-rolling host system
 
   -  run a legacy userland on a modern Linux system
+
+  -  run software in an "altered version" of the host OS itself
 
   -  create clean, controlled and isolated environments for installing
        building, and/or running software packages
@@ -15,7 +18,7 @@ softawre environments can be used to:
 
   -  limit access to the filesystem
 
-  -  possibly other purposes, as well
+  -  and possibly for other purposes, as well
 
 
 ====  Usage
