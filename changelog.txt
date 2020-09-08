@@ -1,0 +1,5 @@
+20200908
+
+Major overhaul.  Many parts refactored into a C++ style.  Command line 
+interface redesigned.  Improvements and changes to profiles.  Added 
+tracking of cwd and chdir() to cwd inside the namespace if possible.

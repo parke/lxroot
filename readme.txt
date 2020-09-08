@@ -1,6 +1,19 @@
 Lxroot is a clone of chroot, however lxroot does not require root
 access.
 
+***  Note as of 20200908  ***
+
+Many improvements and changes have been made to lxroot.c.
+
+Consequently, this readme.txt file is out of date and needs to be
+updated.
+
+The examples and instrcutions in this readme.txt file may still work,
+but any problems or discrepancies you encounter may be due to the
+changes and improvements to lxroot.c.
+
+***  End of note  ***
+
 Lxroot allows a non-root user to quickly and easily create a
 chroot-like environment (technically a Linux user namespace) and then
 run one or more programs inside that namespace.  Lxroot can be used to:
