@@ -1,5 +1,12 @@
+20210530
+
+Major overhaul.  CLI interface changed.  Added read-auto mode.
+Removed profiles.  Added unit.sh and demo.sh.  Changed license to
+GPLv3.
+
+
 20200908
 
-Major overhaul.  Many parts refactored into a C++ style.  Command line 
-interface redesigned.  Improvements and changes to profiles.  Added 
+Major overhaul.  Many parts refactored into a C++ style.  Command line
+interface redesigned.  Improvements and changes to profiles.  Added
 tracking of cwd and chdir() to cwd inside the namespace if possible.
