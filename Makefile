@@ -69,7 +69,7 @@ $(demo3_iso):
 	wget  --continue  -O  $@  $(demo3_url)
 
 
-demo3:  $(demo3_iso)  $(bin)/lxroot
+demo3-base:  $(demo3_iso)  $(bin)/lxroot
 
 	@  echo
 	@  echo  'demo3  create userland1'
@@ -96,6 +96,8 @@ demo3:  $(demo3_iso)  $(bin)/lxroot
 	@  echo
 	mkdir  -p  $(demo)/demo3/userland2/userland3/$(HOME)
 
+
+demo3:  demo3-base
 	@  echo
 	@  echo
 	@  echo  "(  The Demo #3 guest userland has been created.       )"
