@@ -162,6 +162,8 @@ To run Demo #3, please run:
 
 After downloading the `.iso` file (which may take several minutes), Demo #3 takes about two minutes to build the three userlands on my computer.  I have a low TDP CPU, but all files are read and written to a fast ramdisk.    Userland #3, which contains everything Chromium needs to run, is 1.7GB.  (This 1.7GB could probably be pruned down significantly, if desired.)  Demo #3's total disk usage is approximately 5GB of disk space.  By default, all files will be written inside `/tmp/lxroot-demo`.  I think you can change this location by editing one line the `Makefile`.
 
+At present, sound will probably not work inside Demo #3.  On my desktop computer, Chromium does run inside Lxroot with working sound (via PulseAudio).  At present, I don't have sufficient time to investigate why I cannot get sound working inside the Demo.
+
 ###  Documentation
 
 Lxroot can be thought of as an alternative to the standard Unix program `chroot`.  (Lxroot also has similaries to the Linux program `unshare`.)
