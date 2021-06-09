@@ -1,3 +1,15 @@
+20210608
+
+Added Demo #3 to demo.sh.  Improved readme.md.
+
+
+20210605
+
+Significant internal refactoring to improve readability and future
+maintainability.  CLI interface unchanged.  Minor improvements/fixes
+to readauto mode.
+
+
 20210530
 
 Major overhaul.  CLI interface changed.  Added read-auto mode.
