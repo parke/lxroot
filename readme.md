@@ -110,7 +110,7 @@ Lxroot makes it easy to create a child Lxroot nested inside a parent Lxroot.
 
 The below commands will:
 
-- enter guest userland created by Demo #1
+- enter the guest userland created by Demo #1
 - install the GCC compiler inside the Demo #1 userland
 - use GCC to compile Lxroot inside the Demo #1 userland
 - create a nested child Alpine userland inside the Demo #1 userland
