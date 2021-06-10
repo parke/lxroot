@@ -34,7 +34,7 @@ Below are notes on using Lxroot with userlands from the following Linux distribu
 
 Lxroot creates virtual environments via Linux user namespaces.  Linux user namespaces, by their very nature, have inherent and unavoidable limitations.  In some cases, these limitations may create compatibility issues, depending on exactly what software you try to run inside Lxroot.
 
-It is also possible that your Linux distribution provides a Linux kernel with the "user namespace" functionality disabled.  In this case, Lxroot will fail to run on your kernel.  I suspect most Linux kernels today are compiled with the "user namespace" enabled, but I have not attempted to verify this.
+It is also possible that your Linux distribution provides a Linux kernel that was compiled with user namespaces disabled.  In this case, Lxroot will fail to run on your kernel.  I suspect most Linux kernels today are compiled with user namespaces enabled, but I have not attempted to verify this.
 
 ###  Installation
 
@@ -136,7 +136,7 @@ To run Demo #2, please run the following commands:
 
 ###  Demo #3 - Arch Linux plus the Chromium web browser
 
-Demo #3 will create an Arch Linux userland that contains the Chromium web browser.  Demo #3 will then run an interactive shell in this userland.  Run `chromium` in this shell to run Chromium.
+Demo #3 will create an Arch Linux userland that contains the Chromium web browser.  Demo #3 will then run an interactive shell in this userland.  Run `chromium` in this shell to run Chromium.  Demo #3 was developed and tested on an Ubuntu 20.04 host.  Demo #3 may or may not run on other hosts.
 
 Chromium's access to the filesystem will be limited to the Lxroot environment.  Furthermore, only `$HOME` and `/tmp` will be writable; all other directories will be bind mounted in read-only mode.
 
@@ -160,9 +160,11 @@ To run Demo #3, please run:
 
     make  demo3
 
-After downloading the `.iso` file (which may take several minutes), Demo #3 takes about two minutes to build the three userlands on my computer.  I have a low TDP CPU, but all files are read and written to a fast ramdisk.    Userland #3, which contains everything Chromium needs to run, is 1.7GB.  (This 1.7GB could probably be pruned down significantly, if desired.)  Demo #3's total disk usage is approximately 5GB of disk space.  By default, all files will be written inside `/tmp/lxroot-demo`.  I think you can change this location by editing one line the `Makefile`.
+After downloading the `.iso` file (which may take several minutes), Demo #3 takes about two minutes to build the three userlands on my computer.  I have a low TDP CPU, but all files are read and written to a fast ramdisk.    Userland #3, which contains everything Chromium needs to run, is 1.7GB.  (This 1.7GB could probably be pruned down significantly, if desired.)  Demo #3's total disk usage is approximately 5GB of disk space.  By default, all files will be written inside `/tmp/lxroot-demo`.  I think you can change this location by editing one line in `Makefile`.
 
-At present, sound will probably not work inside Demo #3.  On my desktop computer, Chromium does run inside Lxroot with working sound (via PulseAudio).  At present, I don't have sufficient time to investigate why I cannot get sound working inside the Demo.
+At present, sound is disabled in Demo #3.  If you wish to attempt to enable sound (via PulseAudio), then edit `Makefile` and add `--pulseaudio` to the final line of the `demo3` recipe, as shown below.  You probably also need to create manually create the `$XDG_RUNTIME_DIR/pulse` directory inside `userland3`.
+
+    $(bin)/lxroot  -nx  --pulseaudio  $(demo)/demo3/userland2/userland3
 
 ###  Documentation
 

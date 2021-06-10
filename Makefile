@@ -1,6 +1,6 @@
 
 
-#  version  20210608
+#  version  20210610
 
 
 bin       ?=  bin
@@ -116,6 +116,7 @@ demo3:  demo3-base
 
 
 demo3-clean:
+	@  #  paths hardcoded for safety
 	mkdir  -p       /tmp/lxroot-demo/demo3
 	chmod  -R  u+w  /tmp/lxroot-demo/demo3
 	rm     -rf      /tmp/lxroot-demo/demo3
