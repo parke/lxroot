@@ -1,7 +1,7 @@
 #! /bin/bash
 
 
-#  version  20210608
+#  version  20210610
 
 
 set  -o errexit
@@ -135,6 +135,13 @@ demo1 ()  {    #  -----------------------------------------------------  demo1
 #  demo 3  -----------------------------------------------------------  demo 3
 
 
+#  demo3 uses only a single mirror in hopes of avoiding problems
+#  caused by mirror skew.  You may specify a different mirror below,
+#  if you wish.
+
+demo3_mirrorlist='Server = https://mirror.sfo12.us.leaseweb.net/archlinux/$repo/os/$arch'
+
+
 demo3_u1_create_u2  ()  {    #  --------------------------  demo3_u1_create_u2
 
   if  [ -d /userland2 ]  ;  then
@@ -169,6 +176,11 @@ demo3_u1_create_u2  ()  {    #  --------------------------  demo3_u1_create_u2
   trace  rm  -f  userland2/etc/resolv.conf
   trace  cp  /etc/resolv.conf  userland2/etc/resolv.conf
 
+  trace  cd  /iso-extract/userland2/etc/pacman.d
+  if  [ -f mirrorlist ]  &&  [ ! -f mirrorlist-orig ]  ;  then
+    trace  cp  mirrorlist  mirrorlist-orig  ;  fi
+  echo  "$demo3_mirrorlist"  >  mirrorlist
+
   trace  cd  /
   trace  mv  /iso-extract/userland2  /userland2
   trace  rm  -rf  /iso-extract
@@ -183,8 +195,6 @@ demo3_u2_create_u3  ()  {    #  --------------------------  demo3_u2_create_u3
   if  [ -d /userland3 ]  ;  then
     echo  'demo3_u2_create_u3  already done'  ;  return  ;  fi
 
-  local  mirror='Server = https://mirror.sfo12.us.leaseweb.net/archlinux/$repo/os/$arch'
-
   echo  'demo3_u2_create_u3'
 
   trace  pacman-key  --init
@@ -194,8 +204,10 @@ demo3_u2_create_u3  ()  {    #  --------------------------  demo3_u2_create_u3
   trace  cp  /etc/resolv.conf  /mnt/userland3/etc/
   trace  cp  -a  /etc/pacman.d/gnupg  /mnt/userland3/etc/pacman.d/
 
-  echo  "$mirror"  >>  /mnt/userland3/etc/pacman.d/mirrorlist
+  trace  cd  /mnt/userland3/etc/pacman.d
+  echo  "$demo3_mirrorlist"  >  mirrorlist
 
+  trace  cd  /
   trace  pacman  -r /mnt/userland3  -Sy  --noconfirm  pacman
 
   trace  mv  /mnt/userland3  /userland3
