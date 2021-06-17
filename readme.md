@@ -1,4 +1,4 @@
-# Lxroot - Lightweight software virtualization
+# Lxroot - a software virtualization tool
 
 ###  About
 
@@ -134,7 +134,7 @@ To run Demo #2, please run the following commands:
     ####  Then, to nest a second userland inside of the demo #1 userland, run:
     $  make  demo
 
-###  Demo #3 - Arch Linux plus the Chromium web browser
+###  Demo #3 - Chromium web browser inside an Arch Linux userland
 
 Demo #3 will create an Arch Linux userland that contains the Chromium web browser.  Demo #3 will then run an interactive shell in this userland.  Run `chromium` in this shell to run Chromium.  Demo #3 was developed and tested on an Ubuntu 20.04 host.  Demo #3 may or may not run on other hosts.
 
@@ -358,8 +358,10 @@ Below is the output of `lxroot --help-more`:
 For reference, here is a partial list of some other software virtualization tools, in approximate(?) order from lightest to heaviest:
 -  `chroot`
 -  `unshare`
--  ( Lxroot )
+-  Lxroot
+-  Proot
 -  Firejail
--  Bubblewrap
+-  Bubblewrap (Flatpak)
 -  podman.io
+-  udocker
 -  Docker
