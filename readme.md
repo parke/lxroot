@@ -4,12 +4,12 @@
 
 Lxroot is a lightweight alternative to chroot, Docker, and other software virtualization tools.
 
-Lxroot allows a non-root user to quickly and easily create a "chroot-style" virtual software environment (a Linux namespace), and then run one or more programs (a "guest userland") inside that namespace.
+Lxroot allows a non-root user to quickly and easily create "chroot-style" virtual software environments (Linux namespaces), and then run one or more programs (a "guest userland") inside those namespaces.
 
 For example, with Lxroot a non-root user can...
 
 -  simultaneously run multiple, different guest userlands on a single Linux host
--  run an (Alpine|Arch|Void) Linux userland on a (Void|Ubuntu) Linux host
+-  run, as just one example, an Arch Linux userland on an Ubuntu Linux host 
 -  run a legacy userland on a modern host
 -  run software in an "altered version" of the host system itself
 -  run any given graphical X11 client (from any guest userland) on the host's X11 server
@@ -18,6 +18,8 @@ For example, with Lxroot a non-root user can...
 -  restrict read and/or write access to specific directories
 -  share one or more directories between an Lxroot environment and the host system
 -  share one or more directories between multiple Lxroot environments.
+-  clone a userland with `rsync`; archive a userland with `tar`
+-  "upgrade" software by building a new, fresh userland, rather than attempting an in-place upgrade
 
 All without root access!
 
