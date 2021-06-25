@@ -68,7 +68,7 @@ demo3_url=https://mirror.rackspace.com/archlinux/iso/2021.06.01/archlinux-2021.0
 
 demo3-iso-soft:
 	if  [ ! -f $(demo3_iso) ]  ;  then  \
-	  wget  --continue  -O  $@  $(demo3_url)  ;  fi
+	  wget  --continue  -O  $(demo3_iso)  $(demo3_url)  ;  fi
 
 
 demo3-base:  demo3-iso-soft  $(bin)/lxroot
