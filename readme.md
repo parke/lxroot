@@ -4,12 +4,12 @@
 
 Lxroot is a lightweight alternative to chroot, Docker, and other software virtualization tools.
 
-Lxroot allows a non-root user to quickly and easily create a "chroot-style" virtual software environment (a Linux user namespace), and then run one or more programs (a "guest userland") inside that user namespace.
+Lxroot allows a non-root user to quickly and easily create a "chroot-style" virtual software environment (a Linux namespace), and then run one or more programs (a "guest userland") inside that namespace.
 
 For example, with Lxroot a non-root user can...
 
 -  simultaneously run multiple, different guest userlands on a single Linux host
--  run an Arch Linux userland on an Ubuntu Linux host
+-  run an (Alpine|Arch|Void) Linux userland on a (Void|Ubuntu) Linux host
 -  run a legacy userland on a modern host
 -  run software in an "altered version" of the host system itself
 -  run any given graphical X11 client (from any guest userland) on the host's X11 server
@@ -25,16 +25,16 @@ The name "Lxroot" is a combination of "Lx" (as in "Linux") and "chroot".
 
 ###  Guest userland compatibility
 
-Below are notes on using Lxroot with userlands from the following Linux distributions:
+Below are notes on using Lxroot with guest userlands from the following Linux distributions:
 
 -  **Alpine Linux**  -  The Alpine Linux package manager and userland seem to run well inside Lxroot.  (See Demo #1, below.)
 -  **Arch Linux**  -  The Arch Linux package manager and userland seem to run well inside Lxroot.  (See Demo #3, below.)
 -  **Debian** and **Ubuntu**  -  Debian's package managers (`apt-get` and `dpkg`) require extensive tweaking and shimming before they will run successfully inside Lxroot.  Consequently, at present I recommend against attempting to create a Debian or Ubuntu guest userland.  If you really want to create a Debian or Ubuntu guest userland, I recommend creating the userland on a native Debian or Ubuntu host.  This will probably require root access. Consider using `debootstrap`.  After you have created the userland, you should be able to use `lxroot` to enter the userland.
--  **Void Linux**  -  It has been a while, but I previously ran Void's package manager and userland inside Lxroot.  Void seemed to work well with Lxroot.  Void Linux provides a rootfs tarball.
+-  **Void Linux**  -  Void Linux works well as a guest or host.  (Note regarding Void as a host:  I have only tested this on headless box, but I suspect X11 sharing will work.  If X11 sharing does not work on a Void Linux host, please open a bug report.)
 
-Lxroot creates virtual environments via Linux user namespaces.  Linux user namespaces, by their very nature, have inherent and unavoidable limitations.  In some cases, these limitations may create compatibility issues, depending on exactly what software you try to run inside Lxroot.
+Lxroot creates virtual environments via Linux namespaces.  When a non-root user creates and enters a Linux namespace, there are inherent and unavoidable limitations.  In some cases, these limitations may create compatibility issues, depending on exactly what software you try to run inside Lxroot.
 
-It is also possible that your Linux distribution provides a Linux kernel that was compiled with user namespaces disabled.  In this case, Lxroot will fail to run on your kernel.  I suspect most Linux kernels today are compiled with user namespaces enabled, but I have not attempted to verify this.
+It is also possible (but hopefully unlikely) that your Linux distribution provides a Linux kernel that was compiled with non-root namespaces disabled.  In this case, Lxroot will fail to run on your kernel.
 
 ###  Installation
 
@@ -136,7 +136,13 @@ To run Demo #2, please run the following commands:
 
 ###  Demo #3 - Chromium web browser inside an Arch Linux userland
 
-Demo #3 will create an Arch Linux userland that contains the Chromium web browser.  Demo #3 will then run an interactive shell in this userland.  Run `chromium` in this shell to run Chromium.  Demo #3 was developed and tested on an Ubuntu 20.04 host.  Demo #3 may or may not run on other hosts.
+Demo #3 will create an Arch Linux userland that contains the Chromium web browser.  Demo #3 will then run an interactive shell in this userland.  Run `chromium` in this shell to run Chromium.
+
+Demo #3 was developed and tested on an Ubuntu 20.04 host.  Demo #3 may or may not run on other hosts.
+
+I have also partially tested Demo #3 on a headless Void Linux system.  Everything installs, and I suspect Chromium would run successfully if I connected a monitor and intalled a graphical desktop.
+
+Note:  Demo #3 uses 5.2GB of disk space.  If `/tmp` runs out of disk space, Demo #3 will fail.  In this case, you may edit `Makefile` to specify a different `demo` directory and then run `make demo3` again.
 
 Chromium's access to the filesystem will be limited to the Lxroot environment.  Furthermore, only `$HOME` and `/tmp` will be writable; all other directories will be bind mounted in read-only mode.
 
@@ -202,21 +208,23 @@ Below is the output of `lxroot --help-more`:
       [mode]  path                bind a full or partial overlay
       'src'   [mode]  path        set the source for partial overlays
       'bind'  [mode]  dst  src    bind src to newroot/dst
+      'cd'    path                cd to path (inside newroot)
+      'wd'    path                cd to path and make path writable
       --                          end of options, command follows
       command  [arg ...]          command
     
     MODES
     
-      ra    read-auto  (default, described below)
+      ra    read-auto  (default for newroot, described below)
       ro    read-only  (bind mount with MS_RDONLY)
       rw    read-write (bind mount without MS_RDONLY)
     
     SHORT OPTIONS
     
-      n    allow network access (CLONE_NEWNET = 0)
-      r    simulate root user (map uid and gid to zero)
-      w    allow full write access to all read-auto binds
-      x    allow X11 access (bind /tmp/.X11-unix and set $DISPLAY)
+      n     allow network access (CLONE_NEWNET = 0)
+      r     simulate root user (map uid and gid to zero)
+      w     allow full write access to all read-auto binds
+      x     allow X11 access (bind /tmp/.X11-unix and set $DISPLAY)
     
     LONG OPTIONS
     
@@ -233,22 +241,38 @@ Below is the output of `lxroot --help-more`:
     READ-AUTO MODE
     
     The purpose of read-auto mode is to (a) grant a simulated-root user
-    write access to the path, while (b) granting a non-simulated-root user
-    write access only to $HOME and /tmp.  Or, stated precisely:
+    broad or total write access, while (b) granting a non-root user write
+    access only to a few select directories, namely: $HOME, /tmp, and
+    /var/tmp.
     
-    If any of -r, -w, --root or --write are specified, then:
-    Each read-auto path will be bind mounted in read-write mode.
+    To be precise and complete:
     
-    Otherwise:
-    A read-auto path inside  $HOME or /tmp will be bind mounted read-write.
-    A read-auto path outised $HOME or /tmp will be bind mounted read-only.
+    Each bind (including newroot) has a specified mode.  The specified
+    mode is one of: 'ra', 'ro', or 'rw'.
     
-    Furhermore:
-    If $HOME and/or /tmp is a descendant of a read-auto bind, then $HOME
-    and/or /tmp (respectively) will be bind mounted in read-write mode.
-    In this case, two or three bind mounts occur.  First, the path will be
-    bind mounted read-only.  And then $HOME and/or /tmp will be bind
-    mounted read-write.
+    If no mode is specified for newroot, then newroot's specified mode
+    defaults to 'ra' (read-auto).
+    
+    If any other bind lacks a specified mode, then that bind simply
+    inherits the specified mode of its parent.
+    
+    Each bind also has an actual mode.  The actual mode is: 'ro' or 'rw'.
+    
+    A bind's actual mode may be different from its specified mode.  A
+    bind's actual mode is determined as follows:
+    
+    If the specified mode is 'rw', then the actual mode is 'rw'.
+    
+    If the bind is inside a path specified by a wd-option, then the actual
+    mode is 'rw' (even if that bind's specified mode is 'ro').
+    
+    If the specified mode is 'ra', and furthormore if:
+      a)  the '-r' or '--root' option is specified, or
+      b)  the '-w' or '--write' option is specified, or
+      c)  the bind's destination path is inside $HOME, /tmp, or /var/tmp,
+    then the actual mode is 'rw'.
+    
+    Otherwise the bind's actual mode is 'ro'.
     
     NEWROOT
     
@@ -331,6 +355,42 @@ Below is the output of `lxroot --help-more`:
     shorter than src, and (c) src may vary greatly in length from bind to
     bind.
     
+    CD
+    
+    A cd-option has the form:  'cd'  path
+    
+    'cd' is the literal string 'cd'.  One or zero cd-options may be
+    specified.
+    
+    A cd-option tells lxroot to cd into path (in the new environment)
+    before executing the command.
+    
+    path does not include newroot, as a cd-option is processed after the
+    pivot.
+    
+    WD
+    
+    A wd-option has the form:  'wd'  path
+    
+    'wd' is the literal string 'wd'.  Zero or more wd-options may be
+    specified.
+    
+    Lxroot will bind path (and all of path's descendants) in read-write
+    mode.  So a wd-option is used to make writeable a specific path (and
+    its descendants) inside the new environment.
+    
+    path does not include newroot, as wd-options are processed after the
+    pivot.
+    
+    Additionally, if no cd-option is specified, then lxroot will cd into
+    the path of the last wd-option prior to executing the command.
+    
+    Note: Any path that is already mounted in read-only mode in the
+    outside environment (i.e. before lxroot runs) will still be read-only
+    inside the new environment.  This is because non-root namespaces can
+    only impose new read-only restricitons.  Non-root namespaces cannot
+    remove preexsiting read-only restrictions.
+    
     COMMAND
     
     The command-option specifies the command that will be executed inside
@@ -352,7 +412,7 @@ Below is the output of `lxroot --help-more`:
     
     To force a path to be interpreted as a command, proceed the path with
     the option '--'.
-    
+
 ###  Other software virtualization tools
 
 For reference, here is a partial list of some other software virtualization tools, in approximate(?) order from lightest to heaviest:
@@ -362,6 +422,7 @@ For reference, here is a partial list of some other software virtualization tool
 -  Proot
 -  Firejail
 -  Bubblewrap (Flatpak)
+-  LXC / LXD
 -  podman.io
 -  udocker
 -  Docker

@@ -1,11 +1,11 @@
 
 
-#  version  20210610
+#  version  20210624
 
 
-bin       ?=  bin
-demo      ?=  /tmp/lxroot-demo
-unit      ?=  /tmp/lxroot-unit
+bin   ?=  bin
+demo  ?=  /tmp/lxroot-demo
+unit  ?=  /tmp/lxroot-unit
 
 
 help:
@@ -16,6 +16,7 @@ help:
 	@  echo  '  make  unit-clean    #  delete the unit test environment'
 	@  echo  '  make  demo          #  run the interactive demo'
 	@  echo  '  make  demo-clean    #  delete the demo environment'
+	@  echo
 
 
 Wextra    ?=  -Wextra  -Wno-unused-parameter
@@ -34,7 +35,7 @@ build:  $(bin)/lxroot
 
 
 clean:
-	rm  -f  bin/lxroot
+	rm  -f  bin/lxroot  ;  true
 
 
 unit:  $(bin)/lxroot  $(unit)
@@ -65,11 +66,12 @@ demo3_iso=$(demo)/dist/archlinux-2021.06.01-x86_64.iso
 demo3_url=https://mirror.rackspace.com/archlinux/iso/2021.06.01/archlinux-2021.06.01-x86_64.iso
 
 
-$(demo3_iso):
-	wget  --continue  -O  $@  $(demo3_url)
+demo3-iso-soft:
+	if  [ ! -f $(demo3_iso) ]  ;  then  \
+	  wget  --continue  -O  $@  $(demo3_url)  ;  fi
 
 
-demo3-base:  $(demo3_iso)  $(bin)/lxroot
+demo3-base:  demo3-iso-soft  $(bin)/lxroot
 
 	@  echo
 	@  echo  'demo3  create userland1'
@@ -97,7 +99,8 @@ demo3-base:  $(demo3_iso)  $(bin)/lxroot
 	mkdir  -p  $(demo)/demo3/userland2/userland3/$(HOME)
 
 
-demo3:  demo3-base
+demo3:
+	make  demo3-base    #  This allows overrding of the demo3 recipe.
 	@  echo
 	@  echo
 	@  echo  "(  The Demo #3 guest userland has been created.       )"
@@ -113,6 +116,10 @@ demo3:  demo3-base
 	@  echo
 	@  read  discard
 	$(bin)/lxroot  -nx  $(demo)/demo3/userland2/userland3
+
+
+demo3-root:  demo3-base
+	$(bin)/lxroot  -nrx  $(demo)/demo3/userland2/userland3
 
 
 demo3-clean:

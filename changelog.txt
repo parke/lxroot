@@ -1,3 +1,34 @@
+
+
+20210624
+
+Fix GitHub issue #3, as follows:
+If remount readonly fails, retry with different flags until success.
+Split Lxroot :: env() into two parts.  Second part happens after umount2().
+Disabled some poorly-formed / overly-restrictive unit tests.
+
+
+20210621
+
+Replaced abstract "Processor" interfaces with std :: function + lambdas.
+Implemented the 'cd' and 'wd' command line options.
+Moved logic into class Logic, thereby separating logic from side effects.
+A Bind with mode o_none now inherits its mode from its parent.
+Converted Opendir iterator to  Logic.scandir() function.
+
+
+20210617
+
+Shell prompt guestname is now the basename of last overlay.
+(Previously, it was the basename of newroot.  Using the last overlay
+is more informative.)
+
+
+20210612
+
+Added read-auto exposure of /var/tmp.
+
+
 20210608
 
 Added Demo #3 to demo.sh.  Improved readme.md.
