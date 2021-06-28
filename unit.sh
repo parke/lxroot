@@ -23,7 +23,10 @@ run  ()  {    #  --------------------------------------------------------  run
   stdout=`  "${command[@]}"  2>&1  `  ;  status=$?  pretty="$status"
   set  -o errexit
 
-  if    [ "$status" = '0'       ]   ;  then  actual="$stdout"  pretty=' '
+
+  if    [ "$status" = '0'       ]  &&
+        [ "$expect" = 'err  0-' ]   ;  then  actual='err  0-'  pretty=' '
+  elif  [ "$status" = '0'       ]   ;  then  actual="$stdout"  pretty=' '
   elif  [ "$status" = '1'       ]  &&
         [ "$expect" = 'err  1-' ]   ;  then  actual='err  1-'
   elif  [ "$stdout"             ]   ;  then  actual="err  $status  $stdout"
@@ -219,8 +222,10 @@ test_no_home  ()  {    #  --------------------------------------  test_no_home
 
   #  test  various newroots
   lxr1=()
-  run1  ''    /bin/sh -c './lxr 2>/dev/null'
-  run1  'err  1  lxroot  directory not found  bad'  ./lxr  bad  --  true
+
+  run1  'err  0-'    ./lxr
+  run1  'err  1  lxroot  error  execve  bad  No such file or directory'  \
+              ./lxr  bad  --  true
 
   return  ;  }
 
@@ -567,6 +572,32 @@ test_options  ()  {    #  --------------------------------------  test_options
   return  ;  }
 
 
+test_no_newroot  ()  {    #  --------------------------------  test_no_newroot
+
+  echo  ;  echo  "-  test_no_newroot"
+
+  env1=(  env  -  )  lxr1=()  cmd1=()
+
+  run1  ''           ./lxr      --  true
+  run1  'err  1-'    ./lxr      --  nr
+  run1  "$UID"       ./lxr      --  id  -u
+  run1  '0'          ./lxr  -r  --  id  -u
+
+  return  ;  }
+
+
+test_env  ()  {    #  ----------------------------------------------  test_env
+
+  echo  ;  echo  "-  test_env"
+
+  env1=(  env  -  'FOO=BAR2'  )  lxr1=()  cmd1=()
+
+  run1  'hello'    ./lxr  -e  --  /bin/sh  -c 'echo hello'
+  run1  'BAR2'     ./lxr  -e  --  /bin/sh  -c 'echo "$FOO"'
+
+  return  ;  }
+
+
 main  ()  {    #  ------------------------------------------------------  main
 
   unit="$1"
@@ -580,6 +611,9 @@ main  ()  {    #  ------------------------------------------------------  main
   prepare_users
 
   cd  "$unit"
+
+  test_no_newroot
+  test_env
 
   test_no_home
   test_home
