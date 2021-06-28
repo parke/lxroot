@@ -4,22 +4,22 @@
 
 Lxroot is a lightweight alternative to chroot, Docker, and other software virtualization tools.
 
-Lxroot allows a non-root user to quickly and easily create "chroot-style" virtual software environments (Linux namespaces), and then run one or more programs (a "guest userland") inside those namespaces.
+Lxroot allows a non-root user to quickly and easily create a "chroot-style" virtual software environment (via Linux namespaces), and then run one or more programs (a "guest userland") inside that environment.
 
 For example, with Lxroot a non-root user can...
 
 -  simultaneously run multiple, different guest userlands on a single Linux host
--  run, as just one example, an Arch Linux userland on an Ubuntu Linux host 
+-  run, for example, an Arch Linux userland on an Ubuntu Linux host 
 -  run a legacy userland on a modern host
 -  run software in an "altered version" of the host system itself
 -  run any given graphical X11 client (from any guest userland) on the host's X11 server
--  create clean, controlled, and isolated guest environments for installing, building, and/or running software packages
+-  create a custom userland for developing software and/or building software packages
+-  control (or test) the installation (or upgrade) of software packages, as a non-root user, by installing and running the software in an isolated and easily disposable userland
+-  manage userlands with standard CLI tools: clone them with `rsync`, archive them with `tar` or `mksquashfs`, delete them `rm -rf`
 -  deny software access to the network
 -  restrict read and/or write access to specific directories
 -  share one or more directories between an Lxroot environment and the host system
 -  share one or more directories between multiple Lxroot environments.
--  clone a userland with `rsync`; archive a userland with `tar`
--  "upgrade" software by building a new, fresh userland, rather than attempting an in-place upgrade
 
 All without root access!
 
@@ -200,7 +200,7 @@ You may also wish to look at the `demo.sh` file.
 
 Below is the output of `lxroot --help-more`:
 
-    usage:  lxroot  [mode] newroot  [options]  [--]  [command [arg ...] ]
+    usage:  lxroot  [[mode] newroot]  [options]  [--]  [command [arg ...] ]
     
     options
       -short                      one or more short options
@@ -223,6 +223,7 @@ Below is the output of `lxroot --help-more`:
     
     SHORT OPTIONS
     
+      e     import (almost) all external environment variables
       n     allow network access (CLONE_NEWNET = 0)
       r     simulate root user (map uid and gid to zero)
       w     allow full write access to all read-auto binds
@@ -230,6 +231,7 @@ Below is the output of `lxroot --help-more`:
     
     LONG OPTIONS
     
+      --env           import (almost) all external environment variables
       --help          display help
       --help-more     display more help
       --network       allow network access (CLONE_NEWNET = 0)
@@ -281,8 +283,12 @@ Below is the output of `lxroot --help-more`:
     Note that the newroot, full-overlay, and partial-overlay options all
     have the same form, namely:  [mode]  path
     
-    The first option of this form is the newroot option.  The newroot
+    The first option of this form is the newroot-option.  The newroot-
     option specfies the newroot.
+    
+    If no newroot-option is specified, then lxroot will neither bind,
+    chroot, nor pivot.  This is useful to simulate root or deny network
+    access while retaining the current mount namespace.
     
     FULL OVERLAY
     

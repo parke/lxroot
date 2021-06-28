@@ -5,12 +5,12 @@
 //  Distributed under GPLv3 (see end of file) WITHOUT ANY WARRANTY.
 
 
-#define  LXROOT_VERSION  "0.0.20210624"
+#define  LXROOT_VERSION  "0.0.20210628"
 
 
 const char *  help  =    //  xxhe  -------------------------------------  help
 "\n"
-"usage:  lxroot  [mode] newroot  [options]  [--]  [command [arg ...] ]\n\n"
+"usage:  lxroot  [[mode] newroot]  [options]  [--]  [command [arg ...] ]\n\n"
 
 "options\n"
 "  -short                      one or more short options\n"
@@ -35,11 +35,11 @@ const char *  help2  =    //  xxhe  -----------------------------------  help2
 
 //  short options  ( for plannig purposes only, possibly inaccurate )
 //  .           .           .           .           .           .
-//  a           f hostfs(?) k           p PID(?)    u UID(?)    z
-//  b           g           l           q           v verbose
-//  c           h hostname? m MOUNT(?)  r root      w write
-//  d dbus(?)   i           n NET       s /sys(?)   x x11
-//  e env(?)    j           o           t           y
+//  a -         f - hostfs  k -         p - PID     u - UID     z
+//  b -         g -         l -         q -         v - verbose
+//  c -         h - hstname m - MOUNT   r root      w write
+//  d - dbus    i -         n NET       s - /sys    x x11
+//  e environ   j -         o -         t           y
 //
 //  A           F           K           P           U           Z
 //  B           G           L           Q           V
@@ -48,8 +48,8 @@ const char *  help2  =    //  xxhe  -----------------------------------  help2
 //  E           J           O           T           Y
 //
 //  long options  ( for plannig purposes only, possibly inaccurate )
-//  dbus  env  help  help-more  network  pid  pulseaudio  root  trace  uid
-//  verbose  version  write  x11
+//    dbus  env  help  help-more  network  pid  pulseaudio  root  trace  uid
+//    verbose  version  write  x11
 
 
 const char *  help_more  =  //  xxlo  -----------------------------  help_more
@@ -62,6 +62,7 @@ const char *  help_more  =  //  xxlo  -----------------------------  help_more
 
 "SHORT OPTIONS\n\n"
 
+"  e     import (almost) all external environment variables\n"
 "  n     allow network access (CLONE_NEWNET = 0)\n"
 "  r     simulate root user (map uid and gid to zero)\n"
 "  w     allow full write access to all read-auto binds\n"
@@ -69,7 +70,7 @@ const char *  help_more  =  //  xxlo  -----------------------------  help_more
 
 "LONG OPTIONS\n\n"
 
-//  "  --env           import all environment variables\n"
+"  --env           import (almost) all external environment variables\n"
 "  --help          display help\n"
 "  --help-more     display more help\n"
 "  --network       allow network access (CLONE_NEWNET = 0)\n"
@@ -121,8 +122,12 @@ const char *  help_more  =  //  xxlo  -----------------------------  help_more
 "Note that the newroot, full-overlay, and partial-overlay options all\n"
 "have the same form, namely:  [mode]  path\n\n"
 
-"The first option of this form is the newroot option.  The newroot\n"
+"The first option of this form is the newroot-option.  The newroot-\n"
 "option specfies the newroot.\n\n"
+
+"If no newroot-option is specified, then lxroot will neither bind,\n"
+"chroot, nor pivot.  This is useful to simulate root or deny network\n"
+"access while retaining the current mount namespace.\n\n"
 
 "FULL OVERLAY\n\n"
 
@@ -1526,6 +1531,7 @@ private:
 
 
   void  do_command  ()  {    //  ------------------  Option_Reader  do_command
+    assert ( command == nullptr );
     type  =  o_command;  command  |=  p;  };
 
 
@@ -1557,7 +1563,6 @@ private:
 
   void  path_or_command  ()  {    //  --------  Option_Reader  path_or_command
     //  path_or_command
-    if  ( command )  {  p == command  ?  do_command()  :  path();  return;  }
     bool  found  =  Lib::is_dir(  overlay  ?  overlay + "/" + arg0  :  arg0  );
     found  ?  path()  :  do_command();  }
 
@@ -1708,6 +1713,7 @@ struct  Init_Tool  {    //  xxin  -------------------------  struct  Init_Tool
 
       case  o_cd:         cd(a);                            break;
       case  o_command:    command(a);                       break;
+      case  o_env:        mut .opt_env       =  o_env;      break;
       case  o_full:       mut .guestname     =  a.arg0;     break;
       case  o_help:       Lib :: help_print();              break;
       case  o_help_more:  Lib :: help_more_print();         break;
@@ -1742,15 +1748,20 @@ private:
 
 
   static void  command  ( const Option & a )  {    //  ---  Init_Tool  command
+
+    /*  20210626  obsolete
     if  (  st.newroot == nullptr  &&  a.arg0  )  {
       printe ( "lxroot  directory not found  %s", a.arg0.s );
       exit ( 1 );  }
+    */
+
     mut .command  =  a.command;  }
 
 
   static void  shortopt  ( const Option & a )  {    //  -  Init_Tool  shortopt
     for  (  mstr p = a.arg0.s+1  ;  *p  ;  p++  )  {
       switch  ( *p )  {
+	case 'e':  mut .opt_env      =  o_env;      break;
 	case 'n':  mut .opt_network  =  o_network;  break;
 	case 'r':  mut .opt_root     =  o_root;     break;
 	case 'w':  mut .opt_write    =  o_write;    break;
@@ -1829,8 +1840,10 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
 	   ||  st.opt_root     == o_root
 	   ||  st.opt_x11      == o_x11  )  {
       opts  =  "-";
+      if  ( st.opt_env     == o_env     )  {  opts  +=  "e";  }
       if  ( st.opt_network == o_network )  {  opts  +=  "n";  }
       if  ( st.opt_root    == o_root    )  {  opts  +=  "r";  }
+      if  ( st.opt_write   == o_write   )  {  opts  +=  "w";  }
       if  ( st.opt_x11     == o_x11     )  {  opts  +=  "x";  }  }
 
     ostr  ps1  =  "PS1=";
@@ -1863,12 +1876,11 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
 	   ||  is_busybox ( st.command[0] )  )  {  ps1_bash();  }  }
 
 
-  /*  20210602  temporarily disabled
-  void  passthru  ()  {    //  ---------------------------  Env_Tool  passthru
+  static void  passthru  ()  {    //  --------------------  Env_Tool  passthru
     if  ( st.opt_env == o_env )  {
-      for  (  Argv p (environ)  ;  * p  ;  p++  )  {
-	env .soft ( * p );  }  }  }
-  */
+      for  (  Argv p (environ)  ;  * p  ;  p ++  )  {
+	trace1 ( "env_tool  passthru  %s", p[0].s );
+	mut .env .soft ( * p );  }  }  }
 
 
 public:
@@ -1882,7 +1894,8 @@ public:
   static void  after_pivot  ()  {    //  --------------  Env_Tool  after_pivot
     shell();     //
     argv();      //  depends on  env.SHELL
-    ps1();  }    //  depends on  command[0]
+    ps1();       //  depends on  command[0]
+    passthru();  }
 
 
 };    //  end  class  Env_Tool  ------------------------  end  class  Env_Tool
@@ -1898,7 +1911,9 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
   void  init  ()  {    //  -------------------------------------  Lxroot  init
     q.options ( Init_Tool :: process );
-    if  ( st.newroot == nullptr )  {  help_print ( 1 );  }  }
+    //  20210626  obsolete
+    //  if  ( st.newroot == nullptr )  {  help_print ( 1 );  }  }
+    return;  }
 
 
   void  unshare  ()  {    //  -------------------------------  Lxroot  unshare
@@ -1940,6 +1955,7 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
 
   void  bind  ()  {    //  -------------------------------------  Lxroot  bind
+    if  ( st.newroot == nullptr )  {  return;  }
     q.binds (  [](auto b)  {
       sys .bind ( b.newroot_dst, b.src );  }  );
     //  note  /proc is mounted later on in Lxroot :: proc().
@@ -1959,7 +1975,8 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
   static void  expose_path    //  -----------------------  Lxroot  expose_path
   ( str path, opt readauto = o_none )  {
-    if  (  path == nullptr  )  {  return;  }
+    if  (  st.newroot == nullptr  )  {  return;  }
+    if  (  path == nullptr        )  {  return;  }
     mfrag  parent;
     opt    mode;
     q.calculate_parent ( path, parent, mode );
@@ -2009,7 +2026,11 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
 
   void  pivot_prepare  ( str pivot )  {    //  --------  Lxroot  pivot_prepare
-    if  ( pivot == nullptr )  {  die1 ( "pivot_preapre  pivot is nullptr" );  }
+
+    //  20210626  obsolete
+    //if( pivot == nullptr )  {  die1 ( "pivot_preapre  pivot is nullptr" );  }
+
+
     //  verify that pivot has at least one sub-direcotry (for put_old)
     assert ( put_old == nullptr );
     q.scandir  (  pivot,  [&](auto e)  {
@@ -2020,6 +2041,7 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
 
   void  pivot  ()  {    //  -----------------------------------  Lxroot  pivot
+    if  ( st.newroot == nullptr )  {  return;  }
     pivot_prepare ( st.newroot );
     sys .pivot  ( st.newroot,  st.newroot + put_old );
     sys .chdir  ( "/" );
@@ -2054,9 +2076,11 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
     //  20201213  fork()ing early complicates debugging with gdb.
     //  Perhaps I should implement fork()ing both early and late?
 
-    if  ( st.newroot )  {
-      sys .mount ( "proc", "/proc", "proc" );
-      sys .umount2 ( put_old.s, MNT_DETACH );  }  }
+    if  ( st.newroot )  {  sys .mount ( "proc", "/proc", "proc" );  }  }
+
+
+  void  umount2  ()  {    //  -------------------------------  Lxroot  umount2
+    if  ( st.newroot )  {  sys .umount2 ( put_old.s, MNT_DETACH );  }  }
 
 
   void  chdir  ()  {    //  -----------------------------------  Lxroot  chdir
@@ -2070,11 +2094,6 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
     if  (  st .newroot  &&  is_dir ( home )  )  { sys .chdir ( home );  }  }
 
 
-  void  umount2  ()  {    //  -------------------------------  Lxroot  umount2
-    //  someday I may move the the call to sys.umount2() to here.
-    return;  }
-
-
   void  xray  ()  {    //  -------------------------------------  Lxroot  xray
 
     if  ( global_opt_trace == o_trace )  {
@@ -2082,9 +2101,10 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
       printe ( "\n" );
       printe ( "xray  uid  %d  %d\n", getuid(), getgid() );
       printe ( "xray  cwd  %s\n", getcwd().s );
-      Argv ( st .env .data() ) .print ( "xray  env  " );
+      printe ( "xray  environment\n" );
+      Argv ( st .env .data() ) .print ( "xray    env  " );
       printe ( "xray  command\n" );
-      st .command .print ( "xray  cmd  " );
+      st .command .print ( "xray    cmd  " );
 
       printe ( "\n" );
       printe ( "xray  binds\n" );
@@ -2107,7 +2127,7 @@ public:
     unshare();       //  before uid_map and bind
     uid_map();       //  after unshare
     bind();          //  after unshare
-    fgetpwent();     //  after bind
+    fgetpwent();     //  after bind, before expose
     expose();        //  after fgetpwent, before remount
     remount();       //  after expose
     options();       //  late, before pivot, after remount
@@ -2119,6 +2139,7 @@ public:
     /*  pivot to umount2 should be as tight as possible  */
     env();           //  after pivot, therefore after umount2
     chdir();         //  after umount2 ( because put_old may shadow $HOME !! )
+    xray();
     exec();          //  last
     return  1;  }    //  exec failed!
 

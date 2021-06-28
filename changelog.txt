@@ -1,11 +1,17 @@
 
 
+20210627
+Implemented environment passthru via -e or --env.
+Added 'e' and 'w' indicators to command prompt.
+Omit the newroot-option to remain in the external mount namespace.
+
+
 20210624
 
 Fix GitHub issue #3, as follows:
 If remount readonly fails, retry with different flags until success.
-Split Lxroot :: env() into two parts.  Second part happens after umount2().
-Disabled some poorly-formed / overly-restrictive unit tests.
+Split Lxroot::env() into two parts.  Second part happens after umount2().
+Disabled some poorly-formed (i.e. overly-restrictive) unit tests.
 
 
 20210621
