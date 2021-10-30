@@ -434,3 +434,9 @@ For reference, here is a partial list of some other software virtualization tool
 -  podman.io
 -  udocker
 -  Docker
+-  Bubblejail (requires Python)
+
+Apparently unmaintained?
+
+-  Fakeroot-ng
+-  sydbox

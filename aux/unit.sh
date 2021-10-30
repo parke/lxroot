@@ -1,7 +1,7 @@
 #! /bin/bash
 
 
-#  unit.sh  version  20210624
+#  unit.sh  version  20210803
 
 
 set  -o errexit
@@ -20,7 +20,7 @@ run  ()  {    #  --------------------------------------------------------  run
   #  echo  "command  ${command[@]}"
   local  stdout  status  actual  pretty
   set  +o errexit
-  stdout=`  "${command[@]}"  2>&1  `  ;  status=$?  pretty="$status"
+  stdout=`  "${command[@]}"  2>&1  `  ;  status="$?"  ;  pretty="$status"
   set  -o errexit
 
 
@@ -224,8 +224,7 @@ test_no_home  ()  {    #  --------------------------------------  test_no_home
   lxr1=()
 
   run1  'err  0-'    ./lxr
-  run1  'err  1  lxroot  error  execve  bad  No such file or directory'  \
-              ./lxr  bad  --  true
+  run1  'err  1-'    ./lxr  bad  --  true
 
   return  ;  }
 
@@ -336,7 +335,7 @@ prepare_full_overlay  ()  {    #  ----------------------  prepare_full_overlay
 
 test_full_overlay  ()  {    #  ----------------------------  test_full_overlay
 
-  echo  ;  echo  "-  test_full_overlay"
+  echo  ;  echo  '-  test_full_overlay'
 
   prepare_full_overlay
   env1=(  env  -  )  lxr1=()  cmd1=()
@@ -590,10 +589,33 @@ test_env  ()  {    #  ----------------------------------------------  test_env
 
   echo  ;  echo  "-  test_env"
 
-  env1=(  env  -  'FOO=BAR2'  )  lxr1=()  cmd1=()
+  TZ='America/Los_Angeles'
+  env1=(  env  -  'FOO=BAR2'  "TZ=$TZ"  )  lxr1=()  cmd1=()
 
-  run1  'hello'    ./lxr  -e  --  /bin/sh  -c 'echo hello'
+  run1  'hello'    ./lxr      --  /bin/sh  -c 'echo hello'
+  run1  ''         ./lxr      --  /bin/sh  -c 'echo "$FOO"'
   run1  'BAR2'     ./lxr  -e  --  /bin/sh  -c 'echo "$FOO"'
+  run1  "$TZ"      ./lxr      --  /bin/sh  -c 'echo "$TZ"'
+  run1  "$TZ"      ./lxr  -e  --  /bin/sh  -c 'echo "$TZ"'
+
+  return  ;  }
+
+
+test_dev_shm  ()  {    #  --------------------------------------  test_dev_shm
+
+  #  20211002  On my development system, /dev/shm exists.  Moreover,
+  #            /dev/shm is mounted with the nosuid and nodev flags.
+  #            Therefore, I can use /dev/shm to test read-only
+  #            remounting of bind mounts with nosuid and nodev.
+
+  [ ! -d /dev/shm ]  &&  return
+
+  env1=(  env  -  )  lxr1=()  cmd1=()
+
+  run1  'foo'    ./lxr  nr  bind  rw  /mnt  /dev/shm  --  echo  foo
+  run1  'foo'    ./lxr  nr  bind  ra  /mnt  /dev/shm  --  echo  foo
+  run1  'foo'    ./lxr  nr  bind  ro  /mnt  /dev/shm  --  echo  foo
+  run1  'foo'    ./lxr  nr  bind      /mnt  /dev/shm  --  echo  foo
 
   return  ;  }
 
@@ -612,6 +634,7 @@ main  ()  {    #  ------------------------------------------------------  main
 
   cd  "$unit"
 
+  test_dev_shm
   test_no_newroot
   test_env
 
