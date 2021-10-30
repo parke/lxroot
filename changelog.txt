@@ -1,6 +1,47 @@
 
 
+20211028
+
+Ipmelmented proper fix of GitHub issue #3, via statfs().
+Moved demo.sh and unit.sh to aux/ directory.
+Added static.sh to aux/ to aux/ directory.
+Improved Makefile help text.
+Moved help strings from lxroot.cpp to help.cpp.
+Moved string classes from lxroot.cpp to str.cpp.
+
+
+20211019
+
+moved string implementation to str.cpp
+name changes related to char * and/or mutability vs. immutability
+  renamed     struct  mstr  to  struct mStr
+  renamed     enum    opt   to  enum   mopt
+  renamed     struct  str   to  struct Str
+  introduced  typedef mstr
+  introduced  typedef opt
+  introduced  typedef str
+
+
+20210803
+
+In anticipation of binding files, '--' is now required before command.
+
+
+20210801
+
+Rebuilt Logic :: binds().  It is now simpler and (more?) correct.
+Specifically:  I believe Lxroot now ignores (i.e. skips) overbound
+binds.  This is beneficial, for example, when using multiple,
+partially-overlapping full-overlays.
+
+
+20210630
+
+Added '/usr/local/games:/usr/games' to $PATH.
+
+
 20210627
+
 Implemented environment passthru via -e or --env.
 Added 'e' and 'w' indicators to command prompt.
 Omit the newroot-option to remain in the external mount namespace.

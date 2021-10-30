@@ -5,265 +5,12 @@
 //  Distributed under GPLv3 (see end of file) WITHOUT ANY WARRANTY.
 
 
-#define  LXROOT_VERSION  "0.0.20210628"
-
-
-const char *  help  =    //  xxhe  -------------------------------------  help
-"\n"
-"usage:  lxroot  [[mode] newroot]  [options]  [--]  [command [arg ...] ]\n\n"
-
-"options\n"
-"  -short                      one or more short options\n"
-"  --long-option               a long option\n"
-"  n=v                         set an environment variable\n"
-"  [mode]  newroot             set and bind the newroot\n"
-"  [mode]  path                bind a full or partial overlay\n"
-"  'src'   [mode]  path        set the source for partial overlays\n"
-"  'bind'  [mode]  dst  src    bind src to newroot/dst\n"
-"  'cd'    path                cd to path (inside newroot)\n"
-"  'wd'    path                cd to path and make path writable\n"
-"  --                          end of options, command follows\n"
-"  command  [arg ...]          command\n"
-"";    //  end  help  ---------------------------------------------  end  help
-
-
-const char *  help2  =    //  xxhe  -----------------------------------  help2
-"\n"
-"  For more help, please run:  lxroot  --help-more\n"
-"";    //  end  help2  -------------------------------------------  end  help2
-
-
-//  short options  ( for plannig purposes only, possibly inaccurate )
-//  .           .           .           .           .           .
-//  a -         f - hostfs  k -         p - PID     u - UID     z
-//  b -         g -         l -         q -         v - verbose
-//  c -         h - hstname m - MOUNT   r root      w write
-//  d - dbus    i -         n NET       s - /sys    x x11
-//  e environ   j -         o -         t           y
-//
-//  A           F           K           P           U           Z
-//  B           G           L           Q           V
-//  C           H           M           R           W
-//  D           I           N           S           X
-//  E           J           O           T           Y
-//
-//  long options  ( for plannig purposes only, possibly inaccurate )
-//    dbus  env  help  help-more  network  pid  pulseaudio  root  trace  uid
-//    verbose  version  write  x11
-
-
-const char *  help_more  =  //  xxlo  -----------------------------  help_more
-
-"\nMODES\n\n"
-
-"  ra    read-auto  (default for newroot, described below)\n"
-"  ro    read-only  (bind mount with MS_RDONLY)\n"
-"  rw    read-write (bind mount without MS_RDONLY)\n\n"
-
-"SHORT OPTIONS\n\n"
-
-"  e     import (almost) all external environment variables\n"
-"  n     allow network access (CLONE_NEWNET = 0)\n"
-"  r     simulate root user (map uid and gid to zero)\n"
-"  w     allow full write access to all read-auto binds\n"
-"  x     allow X11 access (bind /tmp/.X11-unix and set $DISPLAY)\n\n"
-
-"LONG OPTIONS\n\n"
-
-"  --env           import (almost) all external environment variables\n"
-"  --help          display help\n"
-"  --help-more     display more help\n"
-"  --network       allow network access (CLONE_NEWNET = 0)\n"
-"  --pulseaudio    allow pulseaudio access (bind $XDG_RUNTIME_DIR/pulse)\n"
-"  --root          simulate root user (map uid and gid to zero)\n"
-"  --trace         log diagnostic info to stderr\n"
-"  --version       print version info and exit\n"
-"  --write         allow full write access to all read-auto binds\n"
-"  --x11           allow X11 access (bind /tmp/.X11-unix and set $DISPLAY)\n\n"
-
-"READ-AUTO MODE\n\n"
-
-"The purpose of read-auto mode is to (a) grant a simulated-root user\n"
-"broad or total write access, while (b) granting a non-root user write\n"
-"access only to a few select directories, namely: $HOME, /tmp, and\n"
-"/var/tmp.\n\n"
-
-"To be precise and complete:\n\n"
-
-"Each bind (including newroot) has a specified mode.  The specified\n"
-"mode is one of: 'ra', 'ro', or 'rw'.\n\n"
-
-"If no mode is specified for newroot, then newroot's specified mode\n"
-"defaults to 'ra' (read-auto).\n\n"
-
-"If any other bind lacks a specified mode, then that bind simply\n"
-"inherits the specified mode of its parent.\n\n"
-
-"Each bind also has an actual mode.  The actual mode is: 'ro' or 'rw'.\n\n"
-
-"A bind's actual mode may be different from its specified mode.  A\n"
-"bind's actual mode is determined as follows:\n\n"
-
-"If the specified mode is 'rw', then the actual mode is 'rw'.\n\n"
-
-"If the bind is inside a path specified by a wd-option, then the actual\n"
-"mode is 'rw' (even if that bind's specified mode is 'ro').\n\n"
-
-"If the specified mode is 'ra', and furthormore if:\n"
-"  a)  the '-r' or '--root' option is specified, or\n"
-"  b)  the '-w' or '--write' option is specified, or\n"
-"  c)  the bind's destination path is inside $HOME, /tmp, or /var/tmp,\n"
-"then the actual mode is 'rw'.\n\n"
-
-"Otherwise the bind's actual mode is 'ro'.\n\n"
-
-"NEWROOT\n\n"
-
-"Note that the newroot, full-overlay, and partial-overlay options all\n"
-"have the same form, namely:  [mode]  path\n\n"
-
-"The first option of this form is the newroot-option.  The newroot-\n"
-"option specfies the newroot.\n\n"
-
-"If no newroot-option is specified, then lxroot will neither bind,\n"
-"chroot, nor pivot.  This is useful to simulate root or deny network\n"
-"access while retaining the current mount namespace.\n\n"
-
-"FULL OVERLAY\n\n"
-
-"Zero or more full-overlay options may occur anywhere before the first\n"
-"set-source option.\n\n"
-
-"A full-overlay option has the form:  [mode]  path\n\n"
-
-"A full-overlay option will attempt to bind all the subdirectories\n"
-"inside path to identically named subdirectories inside newroot.\n\n"
-
-"For example, if my_overlay contains the subdirectories 'home', 'run',\n"
-"and 'tmp', then the full-overlay option 'rw my_overlay' will attempt\n"
-"to bind the following:\n\n"
-
-"  my_overlay/home  to  newroot/home  in read-write mode\n"
-"  my_overlay/run   to  newroot/run   in read-write mode\n"
-"  my_overlay/tmp   to  newroot/tmp   in read-write mode\n\n"
-
-"If any newroot/subdir does not exist, then that my_overlay/subdir will\n"
-"be silently skipped.\n\n"
-
-"SET SOURCE\n\n"
-
-"A set-source option has the form:  'src'  [mode]  path\n\n"
-
-"'src' is the literal string 'src'.\n\n"
-
-"A set-source option sets the overlay-source-path and the default\n"
-"overlay-mode.  These values will be used by any following\n"
-"partial-overlay options.\n\n"
-
-"Zero or more set-source options may be specified.\n\n"
-
-"PARTIAL OVERLAY\n\n"
-
-"Zero or more partial-overlay options may occur anywhere after the\n"
-"first set-source option.\n\n"
-
-"A partial-overlay option has the form:  [mode]  path\n\n"
-
-"A partial-overlay option will bind overlay/path to newroot/path, where\n"
-"overlay is the overlay-source-path set by the preceding set-source\n"
-"option.\n\n"
-
-"For example, the two options 'src my_overlay home/my_username' will do\n"
-"the following:\n\n"
-
-"  1)  first, the overlay-source-path will be set to 'my_overlay'\n"
-"  2)  then, the following bind will occur:\n\n"
-
-"        my_overlay/home/my_username  to  newroot/home/my_username\n\n"
-
-"If either directory does not exist, lxroot will exit with status 1.\n\n"
-
-"Successive partial-overlay options may be used to bind a selected\n"
-"subset of the descendants of an overlay into newroot.  (Whereas a\n"
-"single full-overlay option attempts to bind all of the full-overlay's\n"
-"immediate subdirectories into newroot.)\n\n"
-
-"BIND\n\n"
-
-"A bind-option has the form:  'bind'  [mode]  dst  src\n\n"
-
-"'bind' is the literal string 'bind'.\n\n"
-
-"A bind-option will bind src to newroot/dst, using the optionally\n"
-"specified mode.\n\n"
-
-"Note that dst precedes src.  This hopefully improves readibilty in\n"
-"scripts where: (a) many binds may be specified, (b) dst is tyically\n"
-"shorter than src, and (c) src may vary greatly in length from bind to\n"
-"bind.\n\n"
-
-"CD\n\n"
-
-"A cd-option has the form:  'cd'  path\n\n"
-
-"'cd' is the literal string 'cd'.  One or zero cd-options may be\n"
-"specified.\n\n"
-
-"A cd-option tells lxroot to cd into path (in the new environment)\n"
-"before executing the command.\n\n"
-
-"path does not include newroot, as a cd-option is processed after the\n"
-"pivot.\n\n"
-
-"WD\n\n"
-
-"A wd-option has the form:  'wd'  path\n\n"
-
-"'wd' is the literal string 'wd'.  Zero or more wd-options may be\n"
-"specified.\n\n"
-
-"Lxroot will bind path (and all of path's descendants) in read-write\n"
-"mode.  So a wd-option is used to make writeable a specific path (and\n"
-"its descendants) inside the new environment.\n\n"
-
-"path does not include newroot, as wd-options are processed after the\n"
-"pivot.\n\n"
-
-"Additionally, if no cd-option is specified, then lxroot will cd into\n"
-"the path of the last wd-option prior to executing the command.\n\n"
-
-"Note: Any path that is already mounted in read-only mode in the\n"
-"outside environment (i.e. before lxroot runs) will still be read-only\n"
-"inside the new environment.  This is because non-root namespaces can\n"
-"only impose new read-only restricitons.  Non-root namespaces cannot\n"
-"remove preexsiting read-only restrictions.\n\n"
-
-"COMMAND\n\n"
-
-"The command-option specifies the command that will be executed inside\n"
-"the lxroot environment.\n\n"
-
-"If no command is specified, lxroot will attempt to find and execute an\n"
-"interactive shell inside the lxroot environment.\n\n"
-
-"Note the following lexical ambiguity: a path-like argument may specify\n"
-"either (a) an overlay option or (b) the command option.\n\n"
-
-"lxroot resolves this ambiguity by looking for a directory at the path.\n"
-"If a directory exists, lxroot interprets the path as an overlay option.\n"
-"If no such directory exists, lxroot interprets the path as a command.\n\n"
-
-"Note that lxroot does not verify that the command actually exists\n"
-"inside newroot.  If the command does not exist, then the call to\n"
-"exec() will will fail and lxroot will exit with status 1.\n\n"
-
-"To force a path to be interpreted as a command, proceed the path with\n"
-"the option '--'.\n\n"
-
-""  ;    //  end  help_more  ---------------------------------  end  help_more
+#define  LXROOT_VERSION  "0.0.0 + 20211019"
 
 
 //  Welcome to the source code for lxroot.
+//
+//  lxroot's command line interface is documented in help.cpp.
 //
 //  The classes and structs in lxroot can be divided into three categories:
 //
@@ -271,31 +18,43 @@ const char *  help_more  =  //  xxlo  -----------------------------  help_more
 //    convenience wrappers around system APIs
 //    high level classes
 //
-//  Low level data storage classes
+//  --  Classes and typedefs that are defined in str.cpp
+//
+//  String type names that begin with 'm' mean mutable.
+//  Most string type names lack the 'm' prefix are immutable.
+//  Lxroot uses the below nicknames (i.e. typedefs) for 'const char *'.
+//
+//  typedef  mstr     a const char *
+//  typedef  str      a const mstr
+//
+//  The following structs provide method access to a wrapped 'const char *'.
+//
+//  struct   mFrag     a mutable string fragment (mstr and length).
+//  struct   mStr      a mutable string (mstr, null terminated).
+//  struct   Concat_2  assists with string concatination.
+//  struct   oStr      an appendable string that owns its memory.
+//  struct   Concat    possibly deprecated, assists with string concatination
+//  struct   Argv      a convenience and saftey wrapper around mstr[].
+//
+//  typedef  Frag     a const mFrag.
+//  typedef  Str      a const mStr.
+//
+//  --  Low level data storage classes
 //
 //  enum    opt       an enumeration that represents various options.
-//  struct  mfrag     a mutable string fragment (const char * and length).
-//  struct  mstr      a mutable string (const char *, null terminated).
-//  struct  Concat_2  assists with string concatination.
-//  struct  ostr      an appendable string that owns its memory.
-//  struct  Concat    possibly deprecated, assists with string concatination
-//  struct  Argv      a convenience and saftey wrapper around const char * *.
 //  struct  Option    represents a parsed command line option.
 //  struct  Bind      represents (and specifies) a potential bind mount.
 //  struct  Env       a list that specifies the new environment.
 //  struct  State     contains shared, mutable, global variables.
 //
-//  typedef  frag     a const mfrag.
-//  typedef  str      a const mstr.
-//
-//  Convenience wrappers
+//  --  Convenience wrappers
 //
 //  class   Dirent     represents a directory entry (from readdir()).
 //  struct  Fgetpwent  parses /etc/passwd.
 //  struct  Lib        contains generally useful functions.
 //  struct  Syscall    provides error handling and tracing of syscalls.
 //
-//  High level classes
+//  --  High level classes
 //
 //  struct  Option_Reader  parses Argv to generate Options and/or Binds.
 //  struct  Logic          analyzes data and performs loops over data.
@@ -307,9 +66,6 @@ const char *  help_more  =  //  xxlo  -----------------------------  help_more
 //  the bottom of lxroot.cpp with class Lxroot (the highest level
 //  class), and then reading deeper into the other (lower level)
 //  classes as needed.
-
-
-const char *    bash_command[]  =  { "/bin/bash", "--norc", nullptr };
 
 
 #include  <dirent.h>         //  man 3 opendir
@@ -325,12 +81,23 @@ const char *    bash_command[]  =  { "/bin/bash", "--norc", nullptr };
 #include  <unistd.h>         //  man 2 getuid stat
 #include  <sys/mount.h>      //  man 2 mount
 #include  <sys/stat.h>       //  man 2 stat
+#include  <sys/statfs.h>     //  man 2 statfs
+#include  <sys/statvfs.h>    //  man 2 statfs  ST_RELATIME
 #include  <sys/syscall.h>    //  man 8 pivot_root
 #include  <sys/types.h>      //  man 3 opendir
 #include  <sys/wait.h>       //  man 2 wait
 
 #include  <vector>           //  class Env .vec
 #include  <functional>       //  std :: function
+
+#include  "help.cpp"         //  Lxroot's help strings
+
+
+//  20211019  At present, these typedefs are also duplicated in str.cpp.
+typedef  const char *  mstr;    //  ---------------------------  typedef  mstr
+typedef  const mstr    str;     //  ----------------------------  typedef  str
+
+
 
 
 template < class C >    //  ---------------------------  template  using  sink
@@ -364,7 +131,7 @@ using  msink  =  std :: function < void ( C & ) >;
 
 
 template < typename T >    //  ----------------------------  template  assert2
-T  assert2  ( T v, const char * file, const int line )  {
+T  assert2  ( T v, str file, const int line )  {
 
   //  Discussion of assert2 being a function vs being a macro:
 
@@ -388,7 +155,22 @@ T  assert2  ( T v, const char * file, const int line )  {
 
 
 
-enum  opt  {    //  xxop  -----------------------------------------  enum  opt
+//  20211019  At present, str.cpp depends on the above assert macro.
+//            Someday, I may remove the dependency on assert.
+//            Until then, I will include str.cpp here.
+
+#include  "str.cpp"          //  Parke's string library
+
+
+
+
+mstr  bash_command[]  =  {    //  ------------------------------  bash_command
+  "/bin/bash",  "--norc",  nullptr  };
+
+
+
+
+enum  mopt  {    //  xxop  ---------------------------------------  enum  mopt
   o_none,
   /*  literal arg types  */
   o_bind,  o_dashdash,  o_cd,  o_ra,  o_ro,  o_rw,  o_src,  o_wd,
@@ -400,7 +182,7 @@ enum  opt  {    //  xxop  -----------------------------------------  enum  opt
   };
 
 
-const char * const  opt_name[]  =  {    //  ------------------------  opt_name
+str  opt_name[]  =  {    //  ---------------------------------------  opt_name
   "0",
   /*  literal arg types  */
   "bind",  "--",        "cd",  "ra",  "ro",  "rw",  "src",  "wd",
@@ -412,539 +194,38 @@ const char * const  opt_name[]  =  {    //  ------------------------  opt_name
   nullptr  };
 
 
-opt  operator ||  ( opt a, opt b )  {    //  ---------------------  opt  op ||
+typedef  const mopt  opt;
+
+
+mopt  operator ||  ( opt a, opt b )  {    //  ---------------------  opt  op ||
   return  a  ?  a  :  b  ;  }
 
 
-opt  global_opt_trace  =  o_none;    //  --------------  opt  global_opt_trace
+mopt  global_opt_trace  =  o_none;    //  --------------  ::  global_opt_trace
 
 
-const char *  o2s  ( const opt n )  {    //  ----------------------------  o2s
+mstr  o2s  ( const opt n )  {    //  --------------------------------  ::  o2s
   if  (  0 <= n  &&  n < ( sizeof opt_name / sizeof(char*) )  )  {
     return  opt_name[n];  }
   return  "INVALID_OPTION";  }
 
 
-opt  s2o  ( const char * const s )  {    //  ----------------------------  s2o
+mopt  s2o  ( str s )  {    //  xxs2  --------------------------------  ::  s2o
   if  ( s )  {
     for  (  int n = o_none;  opt_name[n];  n++ )  {
-      if  ( strcmp ( s, opt_name[n] ) == 0 )  {  return  (opt) n;  }  }  }
+      if  ( strcmp ( s, opt_name[n] ) == 0 )  {  return  (mopt) n;  }  }  }
   return  o_none;  }
+
+
+mopt  s2o  ( Str s )  {    //  xxs2  --------------------------------  ::  s2o
+  return  s2o ( s.s );  }
 
 
 //  end  enum  opt  ------------------------------------------  end  enum  opt
 
 
-
-
-struct   mfrag;     //  ------------------------------  declare  struct  mfrag
-struct   mstr;      //  -------------------------------  declare  struct  mstr
-class    ostr;      //  --------------------------------  declare  class  ostr
-class    Concat;    //  ------------------------------  declare  class  Concat
-typedef  const mstr     str;        //  xxst  ------------------  typedef  str
-typedef  const mfrag    frag;       //  xxfr  -----------------  typedef  frag
 typedef  unsigned long  flags_t;    //  xxfl  --------------  typedef  flags_t
 
-
-struct  mfrag  {    //  xxmf  ---------------------------------  struct  mfrag
-
-
-  const char *  s  =  nullptr;
-  int  n           =  0;
-
-
-  mfrag  ()  {}    //  ------------------------------------------  mfrag  ctor
-  mfrag  ( const char * s        )  :  s(s),  n(s?strlen(s):0)  {}
-  mfrag  ( const char * s, int n )  :  s(s),  n(n)              {}
-  mfrag  ( const char * a,
-	   const char * b )         :  s(a),  n( b - a + 1 )    {}
-
-
-  explicit operator bool  ()  const  {  return  s;  }    //  --------  op bool
-
-
-  bool  operator ==  ( frag & o )  const  {    //  -------------  mfrag  op ==
-    return  n == o.n  &&  memcmp ( s, o.s, n ) == 0;  }
-
-
-  /*  20210623  used next() instead.
-  frag  operator ++  ( int )  {  //  ---------------------------  mfrag  op ++
-    if  ( n > 0 )  {  s ++;  n --;  }  return  * this;  }
-  */
-
-
-  Concat  operator +  ( frag & o )  const;    //  ---------------  mfrag  op +
-
-
-  char  c  ()  const  {  return  n > 0  ?  * s  :  '\0'  ;  }    //  ------  c
-  void  next  ()  {  if  ( n > 0 )  {  s ++;  n --;  }  }    //  -------  next
-
-
-  mfrag  capture_until  ( const char accept )  {    //  -------  capture_until
-    const char * const  a  =  s;
-    return  frag ( a, find(accept).s - a );  }
-
-
-  mfrag &  find  ( const char accept )  {    //  ----------------  mfrag  find
-    while  (  c()  &&  c() not_eq accept )  {  next();  }  return  * this;  }
-
-
-  mfrag &  find_skip  ( const char accept )  {    //  ------  mfrag  find_skip
-    return  find ( accept ) .skip ( accept );  }
-
-
-  mfrag &  skip  ( const char accept )  {    //  ----------------  mfrag  skip
-    while  (  c()  &&  c() == accept  )  {  next();  }  return  * this;  }
-
-
-  void  trace  ( const char * const message )  const  {    // --  mfrag  trace
-    if  ( global_opt_trace == o_trace )  {
-      printe ( "%s  >", message );
-      fwrite ( s, n, 1, stderr );
-      printe ( "<\n" );  }  }
-
-
-};    //  end  struct  mfrag  ----------------------------  end  struct  mfrag
-
-
-
-
-const char *  leak  ( frag o )  {    //  -------------  global  function  leak
-  //  lxroot quickly exec()s on success or exit()s on failure.
-  //  therefore, a few convenient and minor memory leaks are acceptable.
-  char *  rv  =  (char*) malloc  ( o.n + 1 );    //  intentional leak.
-  if  ( rv )  {
-    memcpy ( rv, o.s, o.n );
-    rv [ o.n ]  =  '\0';  }
-  return  rv;  }
-
-
-
-
-struct  mstr  {    //  xxms  -----------------------------------  struct  mstr
-
-  //  mstr is a convenience wrapper around a const char *.
-  //  s points to either (a) nullptr or (b) a null-terminated string.
-  //  an mstr does not own s.  (But see also derived class ostr.)
-  //  an mstr makes no guarantee about the lifetime of *s.
-
-
-  const char *  s  =  nullptr;   //  a pointer to the string.
-
-
-  mstr  ()  {}    //  --------------------------------------------  mstr  ctor
-  mstr  ( const char * s )  :  s(s)  {}    //  -------------------  mstr  ctor
-
-
-  operator bool  ()  const  {  return  s;  }    //  --------  mstr  cast  bool
-  operator frag  ()  const  {  return  s;  }    //  --------  mstr  cast  frag
-
-
-  bool  operator ==  ( str & o )  const  {    //  ---------------  mstr  op ==
-    if  ( s == nullptr  &&  o.s == nullptr )  {  return  true;   }
-    if  ( s == nullptr  ||  o.s == nullptr )  {  return  false;  }
-    return  strcmp ( s, o.s ) == 0;  }
-
-
-  mstr  operator ||  ( const mstr & o )  const  {    //  --------  mstr  op ||
-    return  s  ?  * this  :  o  ;  }
-
-
-  char  operator *  ()  const  {    //  --------------------------  mstr  op *
-    return  s  ?  *s  :  '\0';  }
-
-
-  char  operator []  ( int index )  const  {    //  -------------  mstr  op []
-    if  ( s == nullptr )  {  return  0;  }
-    return  skip ( index ) .s[0];  }
-
-
-  mstr  operator ++  ( int )  {    //  --------------------------  mstr  op ++
-    return  s && *s  ?  s++  :  s  ;  }
-
-
-  Concat  operator +  ( frag o )  const;    //  ---------  declare  mstr  op +
-  Concat  operator +  ( str  o )  const;    //  ---------  declare  mstr  op +
-  Concat  operator +  ( const char * const o )  const;    //  ----  mstr  op +
-
-
-  frag  basename  ()  const  {    //  -------------------------  mstr  basename
-    if  ( s == nullptr )  {  return  nullptr;  }
-    //    /foo/bar
-    //     a  bc
-    //      a is the first character of    this basename
-    //      b is the first character after this basename  ( '/' or '\0' )
-    //      c is the first non-slash after b
-    //    return the last basename
-    const char * a  =  s;
-    while  ( a[0] == '/' && a[1] )  {  a++;  }
-    for  (;;)  {
-      const char *  b  =  a + ( a[0] ? 1 : 0 );
-      while  ( b[0] && b[0] != '/' )  {  b++;  }
-      if     ( b[0] == '\0'        )  {	 return  frag ( a, b-1 );  }
-      const char *  c  =  b + 1;
-      while  ( c[0] == '/'         )  {  c++;  }
-      if     ( c[0] == '\0'        )  {  return  frag ( a, b-1 );  }
-      a  =  c;  }  }
-
-
-  static void  basename_test  ( str s, str expect );    //  ------------------
-
-
-  frag  capture_until  ( char c )  const  {    //  ------  mstr  capture_until
-    mstr  p  =  s;  while  (  p && * p  &&  * p != c  )  {  p ++;  }
-    return  frag ( s, p.s - s );  }
-
-
-  const void *  chr  ( const int c )  const  {    //  -------------  mstr  chr
-    return  s  ?  :: strchr ( s, c )  :  nullptr  ;  }
-
-
-  bool  contains  ( char c )  const  {    //  ----------------  mstr  contains
-    if  ( s == nullptr )  {  return  false;  }
-    for  (  const char * p = s;  * p;  p ++  )  {
-      if  ( * p == c )  {  return  true;  }  }
-    return  false;  }
-
-
-  frag  env_name  ()  const  {    //  ------------------------  str  env_name
-    return  head ( "=" );  }
-
-
-  frag  head  ( const char * sep, int start = 0 )  const  {    //  -----  head
-    if  ( s == nullptr )  {  return  frag();  }
-    const char *  p  =  s;
-    while  (  * p  &&  start-- > 0  )  {  p++;  }
-    const char *  found  =  :: strstr ( p, sep );
-    if  ( found )  {  return  frag ( p, found - p );  }
-    return  frag();  }
-
-
-  bool  is_inside  ( str path )  const  {    //  ------------  mstr  is_inside
-
-    //  return true iff s is equal to or a descendant of path.
-
-    mstr  descendant  =  s;
-    mstr  ancestor    =  path;
-    bool  is_inside   =  false;
-
-    auto  skip_slash  =  [&]  ()  {
-      while  ( * ancestor    == '/'  )  {  ancestor   ++;       }
-      while  ( * descendant  == '/'  )  {  descendant ++;       }
-      if     ( * ancestor    == '\0' )  {  is_inside  =  true;  }  };
-
-    if  ( path == nullptr )  {  return  false;  }
-    skip_slash();
-    while  ( * ancestor == * descendant )  {
-      switch ( * ancestor ) {
-	case '\0':  return  true;  break;
-	case '/':   skip_slash();  break;
-	default:    ancestor ++;  descendant ++;  break;  }  }
-
-    return  is_inside  ||  ( * ancestor == '\0' && * descendant == '/' );  }
-
-
-  bool  is_same_path_as  ( str path )  const  {    //  ------  is_same_path_as
-    return  is_inside(path)  &&  path.is_inside(*this);  }
-
-
-  int  n  ()  const  {    //  ---------------------------------------  mstr  n
-    return  s  ?  strlen ( s )  :  0  ;  }
-
-
-  str  skip  ( int n )  const  {    //  --------------------------  mstr  skip
-    const char *  p  =  s;
-    while  ( n-- > 0 )  {
-      if  (  p  &&  * p )  {  p++; }
-      else  {  return  nullptr;  }  }
-    return  p;  }
-
-
-  str  skip_all  ( char c )  const  {    //  -----------------  mstr  skip_all
-    mstr  p  =  s;
-    while  (  p  &&  * p == c )  {  p ++;  };  return  p;  }
-
-
-  int  spn  ( str accept )  const  {    //  -----------------------  mstr  spn
-    return  s  ?  :: strspn ( s, accept.s )  :  0  ;  }
-
-
-  bool  startswith  ( frag o )  const  {    //  ------------  mstr  starstwith
-    return  s  &&  strncmp ( s, o.s, o.n ) == 0;  }
-
-
-  str  tail  ( str sep )  const  {    //  ------------------------  mstr  tail
-    str  found  =  :: strstr ( s, sep.s );
-    return  found  ?  found.s + sep.n()  :  nullptr  ;  }
-
-
-  static void  unit_test  ()  {    //  ----------------------  mstr  unit_test
-
-    basename_test ( "",          ""    );
-    basename_test ( "/",         "/"   );
-    basename_test ( "//",        "/"   );
-    basename_test ( "///",       "/"   );
-    basename_test ( "a",         "a"   );
-    basename_test ( "/b",        "b"   );
-    basename_test ( "c/",        "c"   );
-    basename_test ( "/d/",       "d"   );
-    basename_test ( "e/f",       "f"   );
-    basename_test ( "/g/h",      "h"   );
-    basename_test ( "abc",       "abc" );
-    basename_test ( "/def",      "def" );
-    basename_test ( "ghi/",      "ghi" );
-    basename_test ( "/jkl/",     "jkl" );
-    basename_test ( "mno/pqr",   "pqr" );
-    basename_test ( "/stu/vwx",  "vwx" );
-    basename_test ( "./xyz",     "xyz" );
-
-    return;  }
-
-
-};    //  end  struct  mstr  ------------------------------  end  struct  mstr
-
-
-
-
-struct  Concat_2  {    //  xxco  ---------------------------  struct  Concat_2
-  mfrag s[3];
-  Concat_2  ( frag a, frag b = 0, frag c = 0 )  :  s{a,b,c}  {}
-};    //  end  struct  Concat_2  ----------------------  end  struct  Concat_2
-
-
-
-
-Concat_2  s  ( frag a, frag b = 0, frag c = 0 )  {    //  xxs  ----  global  s
-  return  Concat_2 ( a, b, c );  }
-
-
-Concat_2  s  ( str a, str b = 0, str c = 0 )  {    //  xxs  -------  global  s
-  return  Concat_2 ( a, b, c );  }
-
-
-opt  s2o  ( str s )  {    //  xxs2  --------------------  global function  s2o
-  return  s2o ( s.s );  }
-
-
-
-
-struct  ostr  :  mstr   {    //  xxos  -------------------------  struct  ostr
-
-
-  int  n  =  0;
-
-
-  ostr  ()  {}    //  --------------------------------------------  ostr  ctor
-  ostr  ( frag          o )  :  mstr()  {  * this  +=  o;  }
-  ostr  ( const char *  o )  :  mstr()  {  * this  +=  o;  }
-  ostr  ( const str &   o )  :  mstr()  {  * this  +=  o;  }
-  ostr  ( const ostr &  o )  :  mstr()  {  * this  +=  o;  }
-  ostr  (       ostr && o )  :  mstr()  {  s=o.s; n=o.n; o.s=nullptr; o.n=0; }
-  ostr  ( const Concat_2 & o )  :  mstr()  { * this = o; }
-
-
-  ~ostr  ()  {    //  --------------------------------------------  ostr  dtor
-    free ( (char*) s );  }
-
-
-  void  operator =  ( frag         o )  {  n=0;  * this += o;   }    //  -----
-  void  operator =  ( const ostr & o )  {  * this  =  frag(o);  }    //  -----
-  void  operator =  ( str          o )  {  * this  =  frag(o);  }    //  -----
-  void  operator =  ( char       * o )  {  * this  =  frag(o);  }    //  -----
-  void  operator =  ( const char * o )  {  * this  =  frag(o);  }    //  -----
-
-
-  void  operator =  ( const Concat_2 & t )  {
-    ostr & r  =  * this;  r = t.s[0];  r += t.s[1];  r += t.s[2];  }
-
-
-  ostr &  operator +=  ( frag o )  {    //  ---------------------  ostr  op +=
-    char *  p  =  (char*) assert ( realloc ( (char*) s, n + o.n + 1 ) );
-    memcpy ( p+n, o.s, o.n );
-    n     +=  o.n;
-    p[n]  =   '\0';
-    s     =   p;
-    return  * this;  }
-
-
-  static ostr  claim  ( str s )  {    //  -----------------------  ostr  claim
-    //  return an ostr that owns s.  s must be an unowned, malloc()ed string.
-    ostr  rv;    rv.s=s.s;    rv.n=s.n();    return rv;  }
-
-
-  static void  unit_test  ();    //  ------------------------  ostr  unit_test
-
-
-};    //  end  struct  ostr  ------------------------------  end  struct  ostr
-
-
-
-
-struct  Concat  {    //  xxco  --------------------------------  class  Concat
-
-  ostr  s;
-
-  Concat  ( frag o )  :  s(o)  {}    //  -----------------------  Concat  ctor
-
-  operator frag          ()  const  {  return  s;  }    //  Concat  cast  frag
-  operator str           ()  const  {  return  s;  }    //  Concat  cast  str
-  operator ostr          ()  const  {  return  s;  }    //  Concat  cast  ostr
-  bool  operator ==  ( str o )  const  {  return  s == o.s;  }    //  --------
-  Concat &  operator +   ( frag o )  {  s  +=  o;  return  * this;  }    //  -
-  Concat &  operator +=  ( frag o )  {  s  +=  o;  return  * this;  }    //  -
-
-
-};    //  end  struct  Concat
-
-
-Concat  mfrag :: operator +  ( frag & o )  const  {    //  ------  mfrag  op +
-  //  written as three statements to (1) avoid infinite recursion, and
-  //  (2) allow named return value optimization.
-  Concat rv (*this);    rv += o;    return rv;  }
-
-
-Concat  mstr :: operator +  ( frag o )  const  {    //  ----------  mstr  op +
-    return  ((frag)*this) + o;  }
-
-
-Concat  mstr :: operator +  ( str  o )  const  {    //  ----------  mstr  op +
-    return  ((frag)*this) + o;  }
-
-
-Concat  mstr :: operator +  ( const char * const o )  const  {    //  --  op +
-    return  ((frag)*this) + o;  }
-
-
-Concat  operator +  ( const char * a, frag b )  {    //  -----------  ::  op +
-  return  frag(a) + b;  }
-
-
-Concat  operator +  ( const char * a, str b )  {    //  ------------  ::  op +
-  return  frag(a) + b;  }
-
-
-void  mstr :: basename_test  ( str s, str expect )  {    //  --  basename_test
-    if  ( s.basename() == expect )  {  return;  }
-    ostr  actual  =  s.basename();
-    printe ( "basename_test  failed\n" );
-    printe ( "  s       %s\n", s.s      );
-    printe ( "  expect  %s\n", expect.s );
-    printe ( "  actual  %s\n", actual.s );
-    abort();  }
-
-
-void  ostr :: unit_test  ()  {    //  -----------------------  ostr  unit_test
-    str   a   =  "a";
-    str   b   =  "b";
-    ostr  ab  =  a + b;
-    assert  ( ab == "ab" );
-    assert  ( ab == a+b  );
-    frag  c   =  "c";
-    frag  d   =  "d";
-    ostr  cd  =  c + "=" + d;
-    assert  ( cd == "c=d" );
-    ostr  ef  =  cd + "ef" + "gh";
-    assert  ( ef == "c=defgh" );
-    assert  ( cd == "c=d" );
-    ;;;  }
-
-
-//  end  struct  Concat  --------------------------------  end  struct  Concat
-
-
-
-
-struct  Argv  {    //  xxar  -----------------------------------  struct  Argv
-
-
-  const char * const *  p  =  nullptr;
-
-
-  Argv  ()  {}    //  --------------------------------------------  Argv  ctor
-  Argv  ( const char * const * const p )  :  p(p)  {}
-
-
-  Argv &  operator |=  ( const Argv & o )  {    //  -------------  Argv  op |=
-    if  ( p == nullptr )  {  p  =  o.p;  }  return  * this;  }
-
-
-  bool  operator ==  ( const Argv & o )  const  {    //  --------  Argv  op ==
-    return  p == o.p;  }
-
-
-  explicit  operator bool  ()  const  {    //  ----------------  Argv  op bool
-    return  p;  }
-
-
-  str  operator *  ()  const  {    //  ---------------------------  Argv  op *
-    return  p  ?  * p  :  nullptr  ;  }
-
-
-  Argv  operator ++  ()  {    //  -------------------------------  Argv  op ++
-    return  p  &&  * p  ?  ++p  :  nullptr  ;  }
-
-
-  Argv  operator ++  (int)  {    //  ----------------------------  Argv  op ++
-    return  p  &&  * p  ?  p++  :  nullptr  ;  }
-
-
-  Argv  operator +  ( int n )  const  {    //  -------------------  Argv  op +
-    Argv  rv  ( * this );
-    while  (  rv.p  &&  rv.p[0]  &&  n-- > 0  )  {  rv++;  }
-    return  rv;  }
-
-
-  Argv &  operator +=  ( int n )  {    //  ----------------------  Argv  op +=
-    * this  =  ( * this ) + n;  return  * this;  }
-
-
-  str  operator []  ( int n )  const  {    //  ------------------  Argv  op []
-    return  * ( ( * this ) + n );  }
-
-
-  ostr  concat  ( frag sep = "  " )  const  {    //  -----------  Argv  concat
-    Argv  o  ( * this );
-    ostr  rv;
-    if ( *(o.p) )  {  rv  +=  * o;    o++;  }
-    for  (  ;  *(o.p)  ;  o++  )  {  rv  +=  sep;    rv  +=  * o;  }
-    return  rv;  }
-
-
-  str  env_get  ( str k )  const  {    //  --------------------  Argv  env_get
-    for  (  Argv o (*this)  ;  *(o.p)  ;  o++  )  {
-      if  ( (*o).env_name() == k )  {  return  (*o);  }  }
-    return  nullptr;  }
-
-
-  void  print  ( str s )  const  {    //  -----------------------  Argv  print
-    for  (  Argv o (*this)  ;  o  &&  o.p[0]  ;  o++  )  {
-      printe  ( "%s%s\n", s.s, o[0].s );  }  }
-
-
-  static void  unit_test  ()  {    //  ----------------------  Argv  unit_test
-
-    const char *  p[]  =  { "a=1", "b=2", "c=3", nullptr };
-    Argv  a(p);
-
-    assert ( a[0] == p[0] );
-    assert ( a[1] == p[1] );
-    assert ( a[2] == p[2] );
-    assert ( a[3] == p[3] );
-
-    assert ( a[0] == a.p[0] );
-    assert ( a[1] == a.p[1] );
-    assert ( a[2] == a.p[2] );
-    assert ( a[3] == a.p[3] );
-    assert ( a.concat() == "a=1  b=2  c=3" );
-
-    assert ( a.env_get("a") == p[0] );
-    assert ( a.env_get("b") == p[1] );
-    assert ( a.env_get("c") == p[2] );
-
-    ;;;  }
-
-
-};    //  end  struct  Argv  ------------------------------  end  struct  Argv
 
 
 
@@ -952,14 +233,14 @@ struct  Argv  {    //  xxar  -----------------------------------  struct  Argv
 struct  Option  {    //  xxop  -------------------------------  struct  Option
 
 
-  opt   type  =  o_none;    //  see the below input/type chart for details.
-  opt   mode  =  o_none;    //  one of:  o_none  o_ra  o_ro  o_rw
-  mstr  arg0,  arg1;
+  mopt  type  =  o_none;    //  see the below input/type chart for details.
+  mopt  mode  =  o_none;    //  one of:  o_none  o_ra  o_ro  o_rw
+  mStr  arg0,  arg1;
   Argv  command;            //  nullptr, then set to command when found
+  Argv  p;                  //  used by subclass Option_Reader
 
-  Argv  p;                  //  points to the next option
-  mstr  newroot;            //  the newroot
-  mstr  overlay;            //  the current overlay
+  mStr  newroot;            //  the newroot
+  mStr  overlay;            //  the current overlay
 
 
   Option  ( Argv p )  :  p(p)  {}    //  -----------------------  Option  ctor
@@ -968,8 +249,14 @@ struct  Option  {    //  xxop  -------------------------------  struct  Option
   operator bool  ()  const  {  return  type;  }    //  ---  Option  cast  bool
 
 
-  void  print  ( str m )  const  {    //  ---------------------  Option  print
+  void  print  ( Str m )  const  {    //  ---------------------  Option  print
     printe ( "%-8s  %-7s  %s\n", m.s, o2s(type), arg0.s );  }
+
+
+protected:
+
+
+  Option  ()  {}
 
 
 };    //  end  struct  Option  --------------------------  end  struct  Option
@@ -980,40 +267,43 @@ struct  Option  {    //  xxop  -------------------------------  struct  Option
 struct  Bind  {    //  xxbi  -----------------------------------  struct  Bind
 
 
-  opt   type    =  o_none;
-  opt   mode    =  o_none;    //  the specified mode  ro, rw, ra, none
-  opt   actual  =  o_none;    //  the actual mode     ro, rw
-  mstr  full;
-  mstr  dst;            //  20210619  at present, dst never begins with '/'
-  ostr  src;
-  ostr  newroot_dst;    //  newroot + dst
-  Argv  p;              //  points to the next option after this Bind.
+  mopt  type    =  o_none;
+  mopt  mode    =  o_none;    //  the specified mode  ro, rw, ra, none
+  mopt  actual  =  o_none;    //  the actual mode     ro, rw
+
+  mStr  full;           //  the path of the full overlay
+  mStr  dst;            //  20210619  at present, dst never begins with '/'
+  oStr  src;
+  oStr  newroot_dst;    //  newroot + dst
+
+  const Option *  option  =  nullptr;    //  the source option for this bind
 
 
   void  clear  ()  {    //  -------------------------------------  Bind  clear
     * this  =  Bind();  }
 
 
-  void  print  ( str s )  const  {    //  -----------------------  Bind  print
+  void  print  ( Str s )  const  {    //  -----------------------  Bind  print
     printe ( "%s  bind  %-7s  %-2s  %-2s  '%s'  '%s'  '%s'\n",
 	     s.s,  o2s(type),  o2s(mode),  o2s(actual), dst.s, src.s,
 	     newroot_dst.s );  }
 
 
   Bind &  set    //  ----------------------------------------------  Bind  set
-  ( const Option & o, str childname = 0 )  {
+  ( const Option & o, Str childname = 0 )  {
 
     //  20210620  note:  a Bind my outlive the Option o.
 
-    str  ov  =  o.overlay;
-    str  a0  =  o.arg0;
-    str  a1  =  o.arg1;
-    str  cn  =  childname;
+    Str  ov  =  o.overlay;
+    Str  a0  =  o.arg0;
+    Str  a1  =  o.arg1;
+    Str  cn  =  childname;
 
-    type  =  o.type;
-    mode  =  o.mode;
-    full  =  nullptr;
-    p     =  o.p;
+    type    =  o.type;
+    mode    =  o.mode;
+    full    =  nullptr;
+    option  =  & o;
+
     switch  ( o.type )  {
       case  o_newroot:  dst="";  src=a0;  mode=mode||o_ra;    break;
       case  o_bind:     dst=a0;  src=s(a1);                   break;
@@ -1038,7 +328,7 @@ struct  Bind  {    //  xxbi  -----------------------------------  struct  Bind
     return  * this;  }
 
 
-  const Bind &  trace  ( str s )  const  {    //  ---------------  Bind  trace
+  const Bind &  trace  ( Str s )  const  {    //  ---------------  Bind  trace
     if  ( global_opt_trace )  {  print ( s );  }
     return  * this;  }
 
@@ -1051,47 +341,47 @@ struct  Bind  {    //  xxbi  -----------------------------------  struct  Bind
 class  Env  {    //  xxen  ---------------------------------------  class  Env
 
 
-  std :: vector < const char * >  vec;
+  std :: vector < mstr >  vec;
 
 
 public:
 
 
-  const char * const *  data  ()  const  {    //  -----------------  Env  data
+  str *  data  ()  const  {    //  --------------------------------  Env  data
     return  vec .data();  }
 
 
-  str  get  ( frag name )  const  {    //  -------------------------  Env  get
+  Str  get  ( Frag name )  const  {    //  -------------------------  Env  get
     for  (  auto & o  :  vec  )  {
-      if  ( str(o) .env_name() == name )  {
-	return  str(o) .tail ( "=" );  }  }
+      if  ( Str(o) .env_name() == name )  {
+	return  Str(o) .tail ( "=" );  }  }
     return  nullptr;  }
 
 
-  void  set  ( str pair )  {    //  --------------------------------  Env  set
-    frag  name  =  pair .env_name();
+  void  set  ( Str pair )  {    //  --------------------------------  Env  set
+    Frag  name  =  pair .env_name();
     if  ( name.n == 0 )  {  return;  }
     for  (  auto & o  :  vec  )  {
-      if  ( str(o) .env_name() == name  )  {  o  =  pair.s;  return;  }  }
+      if  ( Str(o) .env_name() == name  )  {  o  =  pair.s;  return;  }  }
     if  ( vec .size() == 0 )  {  vec .push_back ( nullptr );  }
     vec .back()  =  pair.s;
     vec .push_back ( nullptr );  }
 
 
-  void  set  ( frag name, frag value )  {    //  -------------------  Env  set
+  void  set  ( Frag name, Frag value )  {    //  -------------------  Env  set
     set ( leak ( name + "=" + value ) );  }
 
 
-  void  soft  ( str pair )  {    //  ------------------------------  Env  soft
+  void  soft  ( Str pair )  {    //  ------------------------------  Env  soft
     if  ( not get ( pair .env_name() ) )  {  set ( pair );  }  }
 
 
-  void  soft  ( frag name, frag value )  {    //  -----------------  Env  soft
+  void  soft  ( Frag name, Frag value )  {    //  -----------------  Env  soft
     if  ( not get ( name ) )  {  set ( leak ( name + "=" + value ) );  }  }
 
 
-  void  soft_copy  ( str name )  {    //  --------------------  Env  soft_copy
-    str  pair  =  Argv ( environ ) .env_get ( name );
+  void  soft_copy  ( Str name )  {    //  --------------------  Env  soft_copy
+    Str  pair  =  Argv ( environ ) .env_get ( name );
     if  ( pair )  {  soft ( pair );  }  }
 
 
@@ -1103,10 +393,10 @@ public:
 struct  Fgetpwent  {    //  xxfg  -------------------------  struct  Fgetpwent
 
 
-  ostr  dir, name, shell;    //  see man 3 fgetpwent
+  oStr  dir, name, shell;    //  see man 3 fgetpwent
 
 
-  void  fgetpwent  ( str path, uid_t uid )  {    //  --------------  fgetpwent
+  void  fgetpwent  ( Str path, uid_t uid )  {    //  --------------  fgetpwent
 
     FILE *  f  =  fopen ( path.s, "r" );
 
@@ -1138,17 +428,18 @@ struct  State  {    //  xxst  ---------------------------------  struct  State
   const gid_t  gid           =  getgid();
   Fgetpwent    outside       ;    //  from /etc/passwd outside the lxroot
   Fgetpwent    inside        ;    //  from /etc/passwd inside  the lxroot
-  opt          opt_env       =  o_none;    //  pass in environment
-  opt          opt_network   =  o_none;
-  opt          opt_pulse     =  o_none;
-  opt          opt_root      =  o_none;
-  opt          opt_write     =  o_none;
-  opt          opt_x11       =  o_none;
-  opt          newroot_mode  =  o_none;
-  mstr         newroot;
-  mstr         guestname;
-  mstr         chdir;       //  from the first and only cd option
-  mstr         workdir;     //  from the last wd option
+  mopt         opt_env       =  o_none;    //  pass in environment
+  mopt         opt_network   =  o_none;
+  mopt         opt_pulse     =  o_none;
+  mopt         opt_root      =  o_none;
+  mopt         opt_write     =  o_none;
+  mopt         opt_x11       =  o_none;
+  mopt         newroot_mode  =  o_none;
+  bool         before_pivot  =  true;
+  mStr         newroot;
+  mStr         guestname;
+  mStr         chdir;       //  from the first and only cd option
+  mStr         workdir;     //  from the last wd option
   Argv         command;
 
 
@@ -1171,10 +462,10 @@ public:
 
 
   Dirent &  operator =  ( dirent * pp )   {  p  =  pp;  return  * this;  }
-  bool      operator == ( str s )  const  {  return  name() == s;  }
+  bool      operator == ( Str s )  const  {  return  name() == s;  }
   operator  bool   ()  const              {  return  p;  }
   ino_t     inode  ()  const              {  return  p -> d_ino;  }
-  str       name   ()  const              {  return  p -> d_name;  }
+  Str       name   ()  const              {  return  p -> d_name;  }
 
 
   bool  is_dir  ()  const  {    //  --------------------------  Dirent  is_dir
@@ -1193,29 +484,28 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
   //  20210530  apparent redundancy:  assert_is_dir  vs  directory_require
 
 
-  static void  assert_is_dir    //  ----------------------  Lib  assert_is_dir
-  ( const char * const path, const char * const m )  {
+  static void  assert_is_dir  ( str path, str m )  {    //  ---  assert_is_dir
     if  ( is_dir ( path ) )  {  return;  }
     printe ( "lxroot  %s  directory not found  '%s'\n", m, path  );
     exit ( 1 );  }
 
 
   static void  directory_require     //  -------------  Lib  directory_require
-  ( str path, str m )  {
+  ( Str path, Str m )  {
     if  ( Lib :: is_dir ( path ) )  {  return;  }
     die1 ( "%s directory not found\n  '%s'", m.s, path.s );  }
 
 
-  static bool  eq  ( const char * a, const char * b )  {    //  -----  Lib  eq
+  static bool  eq  ( str a, str b )  {    //  -----------------------  Lib  eq
     if  ( a == NULL  ||  b == NULL )  return  false;
     return  strcmp ( a, b ) == 0;  }
 
 
-  static ostr  getcwd  ()  {    //  -----------------------------  Lib  getcwd
-    return  ostr :: claim ( get_current_dir_name() );  }
+  static oStr  getcwd  ()  {    //  -----------------------------  Lib  getcwd
+    return  oStr :: claim ( get_current_dir_name() );  }
 
 
-  static str  getenv  ( str name )  {    //  --------------------  Lib  getenv
+  static Str  getenv  ( Str name )  {    //  --------------------  Lib  getenv
     return  :: getenv ( name.s );  }
 
 
@@ -1227,11 +517,11 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
     printe ( "%s%s", help, help_more );  exit ( 0 );  }
 
 
-  static str  home  ()  {    //  ----------------------------------  Lib  home
+  static Str  home  ()  {    //  ----------------------------------  Lib  home
     return  getenv ( "HOME" );  }
 
 
-  static bool  is_dir  ( str path )  {    //  -------------------  Lib  is_dir
+  static bool  is_dir  ( Str path )  {    //  -------------------  Lib  is_dir
     struct stat  st;
     if  (  path.s  &&  path.n()  &&
 	   stat ( path.s, & st ) == 0  &&  st .st_mode & S_IFDIR  )  {
@@ -1240,17 +530,17 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
     return  false;  }
 
 
-  static bool  is_empty_dir  ( const char * path )  {    //  ---  is_empty_dir
+  static bool  is_empty_dir  ( str path )  {    //  ------------  is_empty_dir
     if  ( not is_dir ( path ) )  {  return  false;  }
     DIR * dirp  =  assert ( opendir ( path ) );
     for  (  struct dirent * p;  ( p = readdir ( dirp ) );  )  {
-      const char *  s  =  p -> d_name;
+      str  s  =  p -> d_name;
       if  (  eq(s,".")  ||  eq(s,"..")  )  {  continue;  }
       closedir ( dirp );  return  false;  }
     closedir ( dirp );  return  true;  }
 
 
-  static bool  is_file  ( str path )  {    //  -----------------  Lib  is_file
+  static bool  is_file  ( Str path )  {    //  -----------------  Lib  is_file
     struct stat  st;
     if  (  path  &&  :: stat ( path.s, & st ) == 0
 	   &&  st .st_mode & S_IFREG  )  {
@@ -1259,7 +549,7 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
     return  false;  }
 
 
-  static bool  is_link  ( str path )  {    //  -----------------  Lib  is_link
+  static bool  is_link  ( Str path )  {    //  -----------------  Lib  is_link
     struct stat  st;
     if  (  path.s
 	   &&  lstat ( path.s, & st ) == 0
@@ -1268,7 +558,7 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
     return  false;  }
 
 
-  static str  readlink  ( str path )  {    //  ---------------  Lib  readlink
+  static Str  readlink  ( Str path )  {    //  ---------------  Lib  readlink
     struct stat  st;
     if  (  lstat ( path.s, & st ) == 0  &&  st .st_mode & S_IFLNK  )  {
       ssize_t  lim  =  st .st_size + 2;
@@ -1280,12 +570,6 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
       printe ( "lxroot  readlink  failed  %s\n", path.s );
       exit ( 1 );  }
     return  nullptr;  }
-
-
-  /*  20201217  realpath() is not used at present?
-  static str  realpath  ( const char * const path )  {    //  ------  realpath
-    return  ostr :: claim ( :: realpath ( path, nullptr ) );  }
-  */
 
 
 };    //  end  struct  Lib  --------------------------------  end  struct  Lib
@@ -1323,7 +607,7 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
   pid_t  wstatus    =  0;
 
 
-  void  bind  ( str target, str source )  {    //  ------------  Syscall  bind
+  void  bind  ( Str target, Str source )  {    //  ------------  Syscall  bind
     //  from  /usr/include/linux/mount.h
     //    MS_REC        0x 4000
     //    MS_BIND       0x 1000
@@ -1350,11 +634,11 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
     die_pe ( "bind  %s  %s\n", source.s, target.s );  }
 
 
-  void  chdir  ( str path )  {    //  ------------------------  Syscall  chdir
+  void  chdir  ( Str path )  {    //  ------------------------  Syscall  chdir
     try1( :: chdir, "  chdir    %s", path.s );  }
 
 
-  void  chroot  ( str new_root )  {    //  ------------------  Syscall  chroot
+  void  chroot  ( Str new_root )  {    //  ------------------  Syscall  chroot
     try1( :: chroot, "  chroot   %s", new_root.s );  }
 
 
@@ -1362,7 +646,7 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
     try_quiet ( :: close, "  close  %d", fd );  }
 
 
-  void  execve  ( const str   pathname,    //  --------------  Syscall  execve
+  void  execve  ( const Str   pathname,    //  --------------  Syscall  execve
 		  const Argv  argv,
 		  const Argv  envp )  {
 
@@ -1390,7 +674,7 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
     die_pe ( "fork" );  }
 
 
-  void  mount  ( str source, str target, str filesystemtype )  {    //   mount
+  void  mount  ( Str source, Str target, Str filesystemtype )  {    //   mount
     Lib :: directory_require ( target, "target" );
     trace1 ( "  mount    %s  %s  %s", source.s, target.s, filesystemtype.s );
     if  ( :: mount ( source.s, target.s, filesystemtype.s, 0, 0 ) == 0 )  {
@@ -1398,44 +682,97 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
     die_pe ( "mount  %s  %s  %s",  source.s, target.s, filesystemtype.s );  }
 
 
-  void  open  ( int * fd, str pathname, const int flags )  {    //  ----  open
+  void  open  ( int * fd, Str pathname, const int flags )  {    //  ----  open
     if  ( ( * fd = :: open ( pathname.s, flags ) ) >= 0 )  {  return;  }
     die_pe ( "open  %s  %d", pathname.s, flags );  }
 
 
-  void  pivot  ( str new_root, str put_old )  {   //  --------  Syscall  pivot
+  void  pivot  ( Str new_root, Str put_old )  {   //  --------  Syscall  pivot
     trace1 ( "  pivot    '%s'  '%s'", new_root.s, put_old.s );
-    if  ( syscall ( SYS_pivot_root, new_root.s, put_old.s ) == 0 )  { return; }
+    if  ( syscall ( SYS_pivot_root, new_root.s, put_old.s ) == 0 )  {
+      mut .before_pivot  =  false;  return;  }
     die_pe ( "pivot  %s  %s", new_root.s, put_old.s );  }
 
 
-  void  rdonly_20210624  ( str target )  {    //  ---  Syscall  rdonly_20210624
-    trace1 ( "  rdonly   '%s'", target.s );
-    const flags_t  flags  =  MS_BIND | MS_REMOUNT | MS_RDONLY;
-    const int      rv     =  :: mount ( NULL, target.s, NULL, flags, NULL );
-    if  ( rv == 0 )  {  return;  }
-    die_pe ( "rdonly  %lx  %s\n", flags, target.s );  }
+  void  rdonly  ( Str target )  {    //  --------------------  Syscall  rdonly
+    struct statfs  st;    //  we will store the current statfs() flags in st.
+    if  ( statfs ( target.s, & st ) not_eq 0 )  {
+      die_pe ( "rdonly  statfs err  '%s'\n", target.s );  }
+    const flags_t  flags  =  (  st_to_ms ( st .f_flags )
+				| MS_BIND | MS_REMOUNT | MS_RDONLY  );
+    if  ( :: mount ( NULL, target.s, NULL, flags, NULL ) == 0 )  {
+      trace1 ( "  rdonly  %lx  '%s'", flags, target.s );  return;  }
+    die_pe ( "rdonly  %lx  '%s'\n", flags,  target.s );  }
 
 
-  void  rdonly  ( str target )  {    //  --------------------  Syscall  rdonly
-    //  20210624  I do not know a terse way to determine which flags
-    //            are already set.  So we iterate through the relevant
-    //            possibilities until one works.  Maybe someday I will
-    //            implement a more refined solution.  See the file
-    //            fs/namespace.c in the Linux kernel, specifaclly the
-    //            do_reconfigure_mnt() and can_change_locked_flags()
-    //            functions.
-    const char  d = MS_NODEV,  e = MS_NOEXEC,  s = MS_NOSUID;
-    const unsigned char  masks[]  =  { 0, d, s, d|s, e, d|e, e|s, d|e|s };
-    for  ( const auto guess : masks )  {
-      const flags_t  flags  =  guess | MS_BIND | MS_REMOUNT | MS_RDONLY;
-      const int      rv     =  :: mount ( NULL, target.s, NULL, flags, NULL );
-      if  ( rv == 0 )  {
-	trace1 ( "  rdonly  %lx  '%s'", flags, target.s );  return;  }  }
-    die_pe ( "rdonly  '%s'\n", target.s );  }
+  static flags_t  st_to_ms  ( flags_t n )  {    //  -------  Syscall  st_to_ms
+
+    //  convert a statfs() flag to a mount() flag.  (ST_ to MS_ conversion.)
+
+    //  see  / usr / include / x86_64-linux-gnu / bits / statvfs.h
+    //  see  / usr / include / linux / mount.h
+
+    //  flags from man 2 statfs    flags from man 2 mount
+    //    ST_RDONLY          1        MS_RDONLY          1
+    //    ST_NOSUID          2        MS_NOSUID          2
+    //    ST_NODEV           4        MS_NODEV           4
+    //    ST_NOEXEC          8        MS_NOEXEC          8
+    //    ST_SYNCHRONOUS    16        MS_SYNCHRONOUS    16
+    //    ST_MANDLOCK       64        MS_MANDLOCK       64
+    //    ST_NOATIME      1024        MS_NOATIME      1024
+    //    ST_NODIRATIME   2048        MS_NODIRATIME   2048
+    //    ST_RELATIME     4096        MS_RELATIME     1<<21
+
+    //    note  on x86_64  ST_RELATIME != MS_RELATIME
+    //    note  on x86_64  ST_RELATIME == MS_BIND == 4096
+
+    //  the below verbose yet simple implementation should optimize well.
+
+    #define  if_equal(     a, b )  (   a == b                ? b : 0 )
+    #define  if_not_equal( a, b )  ( ( a != b ) && ( n & a ) ? b : 0 )
+
+    constexpr flags_t  copy_these_bits  =
+      if_equal         (  ST_RDONLY,       MS_RDONLY       )
+      |  if_equal      (  ST_NOSUID,       MS_NOSUID       )
+      |  if_equal      (  ST_NODEV,        MS_NODEV        )
+      |  if_equal      (  ST_NOEXEC,       MS_NOEXEC       )
+      |  if_equal      (  ST_SYNCHRONOUS,  MS_SYNCHRONOUS  )
+      |  if_equal      (  ST_MANDLOCK,     MS_MANDLOCK     )
+      |  if_equal      (  ST_NOATIME,      MS_NOATIME      )
+      |  if_equal      (  ST_NODIRATIME,   MS_NODIRATIME   )
+      |  if_equal      (  ST_RELATIME,     MS_RELATIME     );
+
+    const flags_t  shifted_bits  =
+      if_not_equal     (  ST_RDONLY,       MS_RDONLY       )
+      |  if_not_equal  (  ST_NOSUID,       MS_NOSUID       )
+      |  if_not_equal  (  ST_NODEV,        MS_NODEV        )
+      |  if_not_equal  (  ST_NOEXEC,       MS_NOEXEC       )
+      |  if_not_equal  (  ST_SYNCHRONOUS,  MS_SYNCHRONOUS  )
+      |  if_not_equal  (  ST_MANDLOCK,     MS_MANDLOCK     )
+      |  if_not_equal  (  ST_NOATIME,      MS_NOATIME      )
+      |  if_not_equal  (  ST_NODIRATIME,   MS_NODIRATIME   )
+      |  if_not_equal  (  ST_RELATIME,     MS_RELATIME     );
+
+    #undef  if_equal
+    #undef  if_not_equal
+
+    return  ( n & copy_these_bits ) | shifted_bits;  }
 
 
-  void  umount2  ( str target, int flags )  {   //  --------  Syscall  umount2
+  static void  st_to_ms_unit_test  ()  {    //  ----------  st_to_ms_unit_test
+    assert (  st_to_ms ( ST_RDONLY      ) == MS_RDONLY       );
+    assert (  st_to_ms ( ST_NOSUID      ) == MS_NOSUID       );
+    assert (  st_to_ms ( ST_NODEV       ) == MS_NODEV        );
+    assert (  st_to_ms ( ST_NOEXEC      ) == MS_NOEXEC       );
+    assert (  st_to_ms ( ST_SYNCHRONOUS ) == MS_SYNCHRONOUS  );
+    assert (  st_to_ms ( ST_MANDLOCK    ) == MS_MANDLOCK     );
+    assert (  st_to_ms ( ST_NOATIME     ) == MS_NOATIME      );
+    assert (  st_to_ms ( ST_NODIRATIME  ) == MS_NODIRATIME   );
+    assert (  st_to_ms ( ST_RELATIME    ) == MS_RELATIME     );
+    return;  }
+
+
+  void  umount2  ( Str target, int flags )  {   //  --------  Syscall  umount2
     try1( :: umount2, "  umount2  %s  0x%x", target.s, flags );  }
 
 
@@ -1456,7 +793,11 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
   void  write  ( int fd, const void * buf, ssize_t count )  {    //  --  write
     assert ( count >= 0 );
     if  ( :: write ( fd, buf, count ) == count )  {  return;  }
-    die_pe ( "write  %d  %ld", fd, count );  }
+    die_pe ( "write  %d  %ld", fd, (long int) count );  }
+
+
+  static void  unit_test  ()  {    //  -------------------  Syscall  unit_test
+    st_to_ms_unit_test();  }
 
 
 };    //  end  struct  Syscall  ------------------------  end  struct  Syscall
@@ -1470,11 +811,14 @@ Syscall  sys;    //  xxsy  --------------------------------------  global  sys
 struct  Option_Reader    //  xxop  --------------------  struct  Option_Reader
   :  private  Option  {
 
+  const Option &  o;    //  const access to the Option base class
 
-  const Option &  o;    //  const access to Option
+
+  Option_Reader  ( Argv p )  :  Option(p),  o(*this)  {}    //  --------  ctor
 
 
-  Option_Reader  ( Argv p )  :  Option(p),  o(*this)  {}  //  ----------  ctor
+  Option_Reader  ( const Option * o )  :  o(*this)  {    //  -----------  ctor
+    * (Option*) this  =  * o;  }
 
 
   const Option &  next  ()  {    //  --------------------  Option_Reader  next
@@ -1490,7 +834,7 @@ private:
     //
     //    --<longopt>            o_<longopt>    -       --<longopt>    -
     //    -short                 o_shortopt     -       -short         -
-    //    n=v                    o_setenv       -       n=v            -
+    //    name=value             o_setenv       -       name=value     -
     //    [mode] path            o_newroot      mode    path           -
     //    [mode] path            o_full         mode    path           -
     //    [mode] path            o_partial      mode    path           -
@@ -1527,7 +871,7 @@ private:
     if  ( arg0.startswith("-") )  {  type=o_shortopt;  p++;  return;  }
     if  ( is_setenv()          )  {  type=o_setenv;    p++;  return;  }
 
-    path_or_command();  }
+    path();  }
 
 
   void  do_command  ()  {    //  ------------------  Option_Reader  do_command
@@ -1536,7 +880,7 @@ private:
 
 
   bool  is_setenv  ()  {    //  --------------------  Option_Reader  is_setenv
-    const char *  var_name_allowed  =
+    str  var_name_allowed  =
       "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
     const int  n  =  arg0.spn ( var_name_allowed );
     return  n > 0  &&  n < arg0.n()  &&  arg0[n] == '=';  }
@@ -1561,12 +905,6 @@ private:
     else             {  type=o_newroot;  newroot=arg0;  }  }
 
 
-  void  path_or_command  ()  {    //  --------  Option_Reader  path_or_command
-    //  path_or_command
-    bool  found  =  Lib::is_dir(  overlay  ?  overlay + "/" + arg0  :  arg0  );
-    found  ?  path()  :  do_command();  }
-
-
 };    //  end  class  Option_Reader  --------------  end  class  Option_Reader
 
 
@@ -1575,7 +913,7 @@ private:
 struct  Logic  :  Lib  {    //  xxlo  -------------------------  struct  Logic
 
 
-  static opt  actual  ( str path, const opt mode )  {    //  --  Logic  actual
+  static mopt  actual  ( Str path, opt mode )  {    //  -------  Logic  actual
     return  (  mode == o_rw
 	       ||  is_inside_workdir ( path )
 	       ||  (  mode == o_ra
@@ -1586,26 +924,43 @@ struct  Logic  :  Lib  {    //  xxlo  -------------------------  struct  Logic
 
 
   static void  binds  ( sink<Bind> fn )  {    //  --------------  Logic  binds
-    auto  fn2  =  [&]  ( Bind & raw )  {
-      if  ( raw .type == o_full )  {  binds_full ( fn, raw );  return;  }
-      if  ( is_shadowed ( raw.dst, raw.p ) )  {  return;  }
-      mfrag  parent;
-      if  ( raw .mode == o_none )  {
-	//  raw .trace  ( "binds 1    " );
-	calculate_parent ( raw .dst, parent, raw .mode );
-	//  raw .trace  ( "binds 2    " );
-	;;;  }
-      raw .actual  =  actual ( raw.dst, raw.mode );
-      fn ( raw );  };
-    binds_raw ( fn2 );  }
+
+    //  Transform each command line Option into zero or more Binds.
+    //  Pass each Bind to fn.
+
+    Bind  b;
+
+    auto  single  =  [&]  ()  {
+      if  ( is_overbound ( b ) )  { return;  }
+      if  ( b.mode == o_none )  {
+	mFrag  parent;  calculate_parent ( b.dst, parent, b.mode );  }
+      b.actual  =  actual ( b.dst, b.mode );
+      fn ( b );  };
+
+    auto  full  =  [&]  ( const Option & o )  {
+      scandir  (  o.arg0,  [&](auto e)  {
+        if  ( e.is_dir() )  {
+	  b.set ( o, e.name() );
+	  if  ( is_dir ( b.newroot_dst ) )  {  single();  }  }  }  );  };
+
+    options  (  [&]( const Option & o )  {
+      switch  ( o.type )  {
+	case  o_newroot:    //  fallthrough to o_bind
+	case  o_partial:    //  fallthrough to o_bind
+	case  o_bind:       b.set(o);  single();  break;
+	case  o_full:       full(o);  break;
+	default:  break;  }  }  );  }
 
 
   static void  calculate_parent    //  --------------  Logic  calculate_parent
-  ( str child, mfrag & parent, opt & mode )  {
+  ( Str child, mFrag & parent, mopt & mode )  {
 
     //  Find/calculate the path and specified mode of the Bind that
     //  contains path child.  Since each Bind may inherit from its parent,
     //  we must descend to child, one step at a time.
+
+    //  child is the full dst of the bind.
+    //  parent will be set to the full dst of the Bind that contains child.
 
     auto  is_descendant  =  [&]  ( const Bind & raw )  {
       return  child .is_inside ( raw .dst )
@@ -1615,29 +970,42 @@ struct  Logic  :  Lib  {    //  xxlo  -------------------------  struct  Logic
       parent  =  raw .dst;    //  .dst is eternal becaus .type != o_full
       mode    =  raw .mode  ||  mode;  };
 
-    auto  full  =  [&]  ( const Bind & full )  {
-      if  ( parent .n > 0 )  {  return;  }
-      frag  basedir  =  child .skip_all('/') .capture_until('/');
-      if  ( not is_dir ( ostr(s( full.full, "/", basedir )) ) )  {  return;  }
-      if  ( is_shadowed ( basedir, full.p ) )  {  return;  }
-      parent  =  basedir;
-      mode    =  full.mode  ||  mode  ;  };
+    Bind  b;
 
-    auto  consider  =  [&]  ( const Bind & raw )  {
-      if  ( raw .type == o_full              )  {  return  full ( raw );  }
-      if  ( is_shadowed   ( raw.dst, raw.p ) )  {  return;  }
-      if  ( is_descendant ( raw )            )  {  descend_to ( raw );  }  };
+    auto  single  =  [&]  ()  {
+      if  ( is_overbound  ( b ) )  {  return;  }
+      if  ( is_descendant ( b ) )  {  descend_to ( b );  }  };
 
-    binds_raw ( consider );  }
+    oStr  trunk;
+
+    auto  full  =  [&]  ( const Option & o )  {
+      ;;;
+      trunk  =  child .trunk();    //  trunk is a subdir of root
+      b.set ( o, trunk );
+      if  ( not is_dir ( b.newroot_dst ) )  {  return;  }
+      if  ( is_overbound ( b ) )  {  return;  }
+      parent  =  trunk;
+      mode    =  b.mode  ||  mode  ;  };
+
+    options  (  [&]( const Option o )  {
+      switch  ( o.type )  {
+	case  o_newroot:    //  fallthrough to o_bind
+	case  o_partial:    //  fallthrough to o_bind
+	case  o_bind:       b.set(o);  single();  break;
+	case  o_full:       full(o);  break;
+	default:            break;  }  }  );  }
 
 
-  static void  options  ( sink<Option> fn )  {    //  --------  Logic  options
+  static void  options  ( sink<Option> fn )  {   //  ---------  Logic  options
+    //  parse the command line options and pass each option to fn().
     Option_Reader  r  ( st .argv + 1 );
     while  ( r.next() )  {  fn ( r.o );  }  }
 
 
-  static void  scandir  ( str path, sink<Dirent> fn )  {    //  Logic  scandir
-    DIR *   dirp  =  assert ( opendir ( path.s ) );
+  static void  scandir  ( Str path, sink<Dirent> fn )  {    //  Logic  scandir
+    DIR *  dirp  =  opendir ( path.s );
+    if  ( dirp == nullptr )  {
+      die1  ( "opendir  failed  '%s'", path.s );  }
     for  (  Dirent entry;  entry = readdir ( dirp );  )  {
       if  (  entry == "."  ||  entry == ".."  )  {  continue;  }
       fn ( entry );  }
@@ -1647,53 +1015,45 @@ struct  Logic  :  Lib  {    //  xxlo  -------------------------  struct  Logic
 private:
 
 
-  static void  binds_full    //  --------------------------  Logic  binds_full
-  ( sink<Bind> fn, Bind & raw )  {
-    raw .mode  =  raw .mode  ||  st.newroot_mode  ||  o_ra  ;
-    scandir  (  raw .full,  [&](auto e)  {
-      if  ( e.is_dir() )  {
-	raw .dst          =  e.name();
-	raw .newroot_dst  =  s( st.newroot, "/", raw.dst );
-	if  ( is_dir ( raw .newroot_dst ) )  {
-	  raw .src     =  s( raw .full,  "/", e.name() );
-	  raw .actual  =  actual ( raw.dst, raw.mode );
-	  fn ( raw );  }  }  }  );  }
-
-
-  static void  binds_raw  ( msink<Bind> fn )  {    //  -----  Logic  binds_raw
-    Option_Reader  r  ( st .argv + 1 );
-    Bind           raw;
-    while  ( r.next() )  {
-      raw .clear();
-      switch  ( r.o.type )  {
-	case  o_newroot:    //  fallthrough to o_bind
-	case  o_full:       //  fallthrough to o_bind
-	case  o_partial:    //  fallthrough to o_bind
-	case  o_bind:       fn ( raw.set(r.o) );  break;
-	default:  break;  }  }  }
-
-
   static bool  is_inside_readauto    //  ----------  Logic  is_inside_readauto
-  ( str path )  {
+  ( Str path )  {
     return  path .is_inside ( st .env .get("HOME") )
       ||    path .is_inside ( "/tmp" )
       ||    path .is_inside ( "/var/tmp" );  }
 
 
   static bool  is_inside_workdir    //  ------------  Logic  is_inside_workdir
-  ( str path )  {
+  ( Str path )  {
     bool  rv  =  false;
     options (  [&](auto o)  {
       rv  |=  o.type == o_wd  &&  path .is_inside ( o.arg0 );  }  );
     return  rv;  }
 
 
-  static bool  is_shadowed    //  ------------------------  Logic  is_shadowed
-  ( frag dst, Argv p )  {
-    //  20210620  todo  implement
-    //  trace1 ( "is_shadowed  %d  '%s'", dst.n, ostr(dst).s );
-    //  20210624  returning false is acceptable for now.
+  static bool  is_overbound   //  -----------------------  Logic  is_overbound
+  ( const Bind & b )  {
+    //  return true iff some later Option overbinds b.dst.
+    Option_Reader  r  ( b .option );    //  start after b's option
+    while  ( r.next() )  {
+      if  ( is_overbound_by ( b, r.o ) )  {  return  true;  }  }
     return  false;  }
+
+
+  static bool  is_overbound_by    //  ------------------  Lib  is_overbound_by
+  ( const Bind & b, const Option & o )  {
+
+    //  return true iff b is overbound by o.
+
+    auto  do_full  =  [&]  ()  {
+      if  ( b.type == o_newroot )  {  return  false;  }
+      oStr  full_trunk  =  s( o.arg0, "/", b.dst .trunk() );
+      return  Lib :: is_dir ( full_trunk );  };
+
+    switch  ( o.type )  {
+      case  o_full:       return  do_full();  break;
+      case  o_partial:    return  b.dst .is_inside ( o.arg0 );  break;
+      case  o_bind:       return  b.dst .is_inside ( o.arg0 );  break;
+      default:            return  false;  break;  }  }
 
 
 };    //  end  struct  Logic  ----------------------------  end  struct  Logic
@@ -1714,7 +1074,7 @@ struct  Init_Tool  {    //  xxin  -------------------------  struct  Init_Tool
       case  o_cd:         cd(a);                            break;
       case  o_command:    command(a);                       break;
       case  o_env:        mut .opt_env       =  o_env;      break;
-      case  o_full:       mut .guestname     =  a.arg0;     break;
+      case  o_full:       guestname(a);                     break;
       case  o_help:       Lib :: help_print();              break;
       case  o_help_more:  Lib :: help_more_print();         break;
       case  o_network:    mut .opt_network   =  o_network;  break;
@@ -1722,7 +1082,7 @@ struct  Init_Tool  {    //  xxin  -------------------------  struct  Init_Tool
 	;;;               mut .newroot       =  a.arg0;     break;
       case  o_pulse:      mut .opt_pulse     =  o_pulse;    break;
       case  o_root:       mut .opt_root      =  o_root;     break;
-      case  o_src:        mut .guestname     =  a.arg0;     break;
+      case  o_src:        guestname(a);                     break;
       case  o_trace:      global_opt_trace   =  o_trace;    break;
       case  o_version:    version();                        break;
       case  o_wd:         mut .workdir       =  a.arg0;     break;
@@ -1748,18 +1108,16 @@ private:
 
 
   static void  command  ( const Option & a )  {    //  ---  Init_Tool  command
-
-    /*  20210626  obsolete
-    if  (  st.newroot == nullptr  &&  a.arg0  )  {
-      printe ( "lxroot  directory not found  %s", a.arg0.s );
-      exit ( 1 );  }
-    */
-
     mut .command  =  a.command;  }
 
 
+  static void  guestname  ( const Option & o )  {    //  ----------  guestname
+    if  ( o.arg0 == "/" )  {  return;  }
+    mut .guestname  =  o.arg0;  }
+
+
   static void  shortopt  ( const Option & a )  {    //  -  Init_Tool  shortopt
-    for  (  mstr p = a.arg0.s+1  ;  *p  ;  p++  )  {
+    for  (  mStr p = a.arg0.s+1  ;  *p  ;  p++  )  {
       switch  ( *p )  {
 	case 'e':  mut .opt_env      =  o_env;      break;
 	case 'n':  mut .opt_network  =  o_network;  break;
@@ -1788,8 +1146,9 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
 
   static void  essential  ()  {    //  ------------------  Env_Tool  essential
 
-    mut .env .soft ( "PATH=/usr/local/bin:/usr/local/sbin:"
-		     "/usr/bin:/usr/sbin:""/bin:""/sbin" );
+    mut .env .soft ( "PATH="  "/usr/local/bin:/usr/local/sbin"
+		     ":/usr/bin:/usr/sbin"  ":/bin:/sbin"
+		     ":/usr/local/games:/usr/games"  );
 
     const Fgetpwent &  in   =  st .inside;
     const Fgetpwent &  out  =  st .outside;
@@ -1798,14 +1157,13 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
     mut .env .soft ( "LOGNAME", in.name || getenv("LOGNAME") || out.name );
     mut .env .soft ( "USER",    in.name || getenv("USER")    || out.name );
 
-    mut .env .soft_copy ( "TERM" );  }
+    auto  vars  =  { "LANG", "LC_COLLATE",  "TERM", "TZ" };
+    for  ( auto s : vars )  {  mut .env .soft_copy ( s );  }  }
 
 
   static void  shell  ()  {    //  --------------------------  Env_Tool  shell
 
-    auto  shell  =  [&]  ( str path )  {
-      //  20210623
-      //  trace1 ( "shell  %s", path.s );
+    auto  shell  =  [&]  ( Str path )  {
       if  ( is_file ( path )  &&  access ( path.s, X_OK ) == 0 )  {
 	mut .env .set ( "SHELL", path );  return  true;  }
       return  false;  };
@@ -1820,7 +1178,7 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
 
   static void  argv  ()  {    //  ----------------------------  Env_Tool  argv
     if  ( st.command[0] )  {  return;  }
-    str  shell  =  st .env .get ( "SHELL" );
+    Str  shell  =  st .env .get ( "SHELL" );
     if  ( shell == "/bin/bash" )  {  mut .command  =  bash_command;  }
     else if  ( shell )  {
       bash_command[0]    =  shell.s;
@@ -1831,10 +1189,10 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
 
   static void  ps1_bash  ()  {    //  --------------------  Env_Tool  ps1_bash
 
-    str   term  =  st .env .get ( "TERM" );
-    str   user  =  st .env .get ( "USER" );
-    ostr  opts  =  nullptr;
-    ostr  host  =  "./" + ( st .guestname || st .newroot ) .basename()  ;
+    Str   term  =  st .env .get ( "TERM" );
+    Str   user  =  st .env .get ( "USER" );
+    oStr  opts  =  nullptr;
+    oStr  host  =  "./" + ( st .guestname || st .newroot ) .basename()  ;
 
     if  (  st    .opt_network  == o_network
 	   ||  st.opt_root     == o_root
@@ -1846,27 +1204,27 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
       if  ( st.opt_write   == o_write   )  {  opts  +=  "w";  }
       if  ( st.opt_x11     == o_x11     )  {  opts  +=  "x";  }  }
 
-    ostr  ps1  =  "PS1=";
+    oStr  ps1  =  "PS1=";
 
     if  ( term  ==  "xterm-256color" )  {    //  set terminal title
-      ps1  +=  str("\\[\\e]0;") + user + "  ";
+      ps1  +=  Str("\\[\\e]0;") + user + "  ";
       if  ( opts )  {  ps1  +=  opts  +  "  ";  }
       ps1  +=  host  +  "  \\W\\007\\]";  }
 
     //r  bright_cyan  =  "\\[\\e[0;96m\\]";
-    str  bright_red   =  "\\[\\e[0;91m\\]";
-    str  cyan         =  "\\[\\e[0;36m\\]";
+    Str  bright_red   =  "\\[\\e[0;91m\\]";
+    Str  cyan         =  "\\[\\e[0;36m\\]";
     //r  red          =  "\\[\\e[0;31m\\]";
-    str  normal       =  "\\[\\e[0;39m\\]";
+    Str  normal       =  "\\[\\e[0;39m\\]";
 
-    ps1  +=  str("\n") + cyan + user + "  ";
+    ps1  +=  Str("\n") + cyan + user + "  ";
     if  ( opts )  {  ps1  +=  bright_red + opts + cyan + "  ";  }
     ps1  +=  host + "  \\W" + normal + "  ";
 
     mut .env .set ( leak ( ps1 ) );  }
 
 
-  static bool  is_busybox  ( str path )  {    //  ------  Env_Tool  is_busybox
+  static bool  is_busybox  ( Str path )  {    //  ------  Env_Tool  is_busybox
     return  is_link ( path )  &&  readlink ( path ) == "/bin/busybox";  }
 
 
@@ -1906,14 +1264,11 @@ public:
 class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
 
-  ostr  put_old;
+  oStr  put_old;
 
 
   void  init  ()  {    //  -------------------------------------  Lxroot  init
-    q.options ( Init_Tool :: process );
-    //  20210626  obsolete
-    //  if  ( st.newroot == nullptr )  {  help_print ( 1 );  }  }
-    return;  }
+    q.options ( Init_Tool :: process );  }
 
 
   void  unshare  ()  {    //  -------------------------------  Lxroot  unshare
@@ -1974,17 +1329,17 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
 
   static void  expose_path    //  -----------------------  Lxroot  expose_path
-  ( str path, opt readauto = o_none )  {
+  ( Str path, opt readauto = o_none )  {
     if  (  st.newroot == nullptr  )  {  return;  }
     if  (  path == nullptr        )  {  return;  }
-    mfrag  parent;
-    opt    mode;
+    mFrag  parent;
+    mopt   mode;
     q.calculate_parent ( path, parent, mode );
-    ostr   parent2 ( parent );
+    oStr   parent2 ( parent );
     if  (  path .is_same_path_as ( parent2 ) )  {  return;  }
     if  (  q.actual ( parent2, mode ) == o_rw  )  {  return;  }
     if  (  readauto == o_none  ||  mode == o_ra  )  {
-      ostr  newroot_path  =  s( st.newroot, path );
+      oStr  newroot_path  =  s( st.newroot, path );
       if  ( is_dir ( newroot_path ) )  {
 	trace1 ( "  expose   '%s'", newroot_path.s );
 	sys .bind ( newroot_path, newroot_path );  }  }  }
@@ -2005,10 +1360,10 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
   void  option_pulse  ()  {    //  ---------------------  Lxroot  option_pulse
     if  ( st .opt_pulse == o_pulse )  {
-      str  xdg_dir  =  getenv ( "XDG_RUNTIME_DIR" );
+      Str  xdg_dir  =  getenv ( "XDG_RUNTIME_DIR" );
       if  ( xdg_dir )  {
 	mut .env .soft_copy ( "XDG_RUNTIME_DIR" );
-        ostr  pulse_dir  =  xdg_dir + "/pulse";
+        oStr  pulse_dir  =  xdg_dir + "/pulse";
         sys .bind ( st .newroot + pulse_dir, pulse_dir );  }
       else  {
         warn ( "bind_opt_pulse()  XDG_RUNTIME_DIR not set" );  }  }  }
@@ -2025,12 +1380,7 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
     option_x11();  }
 
 
-  void  pivot_prepare  ( str pivot )  {    //  --------  Lxroot  pivot_prepare
-
-    //  20210626  obsolete
-    //if( pivot == nullptr )  {  die1 ( "pivot_preapre  pivot is nullptr" );  }
-
-
+  void  pivot_prepare  ( Str pivot )  {    //  --------  Lxroot  pivot_prepare
     //  verify that pivot has at least one sub-direcotry (for put_old)
     assert ( put_old == nullptr );
     q.scandir  (  pivot,  [&](auto e)  {
@@ -2084,13 +1434,9 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
 
   void  chdir  ()  {    //  -----------------------------------  Lxroot  chdir
-
-    //  20210518  disabled during overhaul.  todo  re-implement ?
-    //  if  (  st.new_cwd  )  {  sys .chdir ( st.new_cwd );  return;  }
-
     if  (  st .chdir    )  {  sys .chdir ( st .chdir   );  return;  }
     if  (  st .workdir  )  {  sys .chdir ( st .workdir );  return;  }
-    str  home  =  st .env .get ( "HOME" );
+    Str  home  =  st .env .get ( "HOME" );
     if  (  st .newroot  &&  is_dir ( home )  )  { sys .chdir ( home );  }  }
 
 
@@ -2106,9 +1452,10 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
       printe ( "xray  command\n" );
       st .command .print ( "xray    cmd  " );
 
-      printe ( "\n" );
-      printe ( "xray  binds\n" );
-      q.binds  (  [](auto b)  { b.trace ( "  " ); }  );
+      if  ( st .before_pivot )  {
+	printe ( "\n" );
+	printe ( "xray  binds\n" );
+	q.binds  (  [](auto b)  { b.trace ( "  " ); }  );  }
 
       printe ( "\n" );
       //  exit ( 2 );
@@ -2150,12 +1497,13 @@ public:
 
 
 void  unit_test  ()  {    //  -------------------------------------  unit_test
-  mstr :: unit_test();
-  ostr :: unit_test();
-  Argv :: unit_test();  }
+  mStr    :: unit_test();
+  oStr    :: unit_test();
+  Argv    :: unit_test();
+  Syscall :: unit_test();  }
 
 
-int  main  ( const int argc, const char * const argv[] )  {    //  -----  main
+int  main  ( const int argc, str argv[] )  {    //  --------------------  main
   unit_test();
   if  ( argc < 2 )  {  Lib :: help_print();  }
   mut .argv  =  argv;
