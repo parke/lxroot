@@ -728,8 +728,8 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
 
     //  the below verbose yet simple implementation should optimize well.
 
-    #define  if_equal(     a, b )  (   a == b                ? b : 0 )
-    #define  if_not_equal( a, b )  ( ( a != b ) && ( n & a ) ? b : 0 )
+    #define  if_equal(     a, b )  ( (int)a == (int)b                  ? b : 0 )
+    #define  if_not_equal( a, b )  ( ( (int)a != (int)b ) && ( n & a ) ? b : 0 )
 
     constexpr flags_t  copy_these_bits  =
       if_equal         (  ST_RDONLY,       MS_RDONLY       )
