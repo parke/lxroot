@@ -1,5 +1,22 @@
 
 
+20211115
+
+Git log:  Created unit.cpp.  Updated demo3(#7).  Fixed MS_ & ST_ enum bug(#6).
+Retired 'master' branch.
+Created new 'main' branch.
+The above two chanegs were done for copyright/authorship reasons.
+They removed a trivial patch from a third party.
+Rebuilt demo3.  Shifted parts of demo3 from Makefile to aux/demo.sh.
+The above demo3 changes fixed Issue #7.
+Fixed enum vs. #define MS_ vs ST_ bug.  (Fixing issue #6.)
+
+
+20211030
+
+Moved C++ unit tests to unit.cpp.
+
+
 20211028
 
 Ipmelmented proper fix of GitHub issue #3, via statfs().

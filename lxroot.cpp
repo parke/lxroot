@@ -728,8 +728,9 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
 
     //  the below verbose yet simple implementation should optimize well.
 
-    #define  if_equal(     a, b )  (   a == b                ? b : 0 )
-    #define  if_not_equal( a, b )  ( ( a != b ) && ( n & a ) ? b : 0 )
+    #define  c(a)  ( (flags_t) (a) )
+    #define  if_equal(     a, b )  (   c(a) == c(b)                ? b : 0 )
+    #define  if_not_equal( a, b )  ( ( c(a) != c(b) ) && ( n & a ) ? b : 0 )
 
     constexpr flags_t  copy_these_bits  =
       if_equal         (  ST_RDONLY,       MS_RDONLY       )
@@ -753,23 +754,11 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
       |  if_not_equal  (  ST_NODIRATIME,   MS_NODIRATIME   )
       |  if_not_equal  (  ST_RELATIME,     MS_RELATIME     );
 
+    #undef  c
     #undef  if_equal
     #undef  if_not_equal
 
     return  ( n & copy_these_bits ) | shifted_bits;  }
-
-
-  static void  st_to_ms_unit_test  ()  {    //  ----------  st_to_ms_unit_test
-    assert (  st_to_ms ( ST_RDONLY      ) == MS_RDONLY       );
-    assert (  st_to_ms ( ST_NOSUID      ) == MS_NOSUID       );
-    assert (  st_to_ms ( ST_NODEV       ) == MS_NODEV        );
-    assert (  st_to_ms ( ST_NOEXEC      ) == MS_NOEXEC       );
-    assert (  st_to_ms ( ST_SYNCHRONOUS ) == MS_SYNCHRONOUS  );
-    assert (  st_to_ms ( ST_MANDLOCK    ) == MS_MANDLOCK     );
-    assert (  st_to_ms ( ST_NOATIME     ) == MS_NOATIME      );
-    assert (  st_to_ms ( ST_NODIRATIME  ) == MS_NODIRATIME   );
-    assert (  st_to_ms ( ST_RELATIME    ) == MS_RELATIME     );
-    return;  }
 
 
   void  umount2  ( Str target, int flags )  {   //  --------  Syscall  umount2
@@ -796,10 +785,6 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
     die_pe ( "write  %d  %ld", fd, (long int) count );  }
 
 
-  static void  unit_test  ()  {    //  -------------------  Syscall  unit_test
-    st_to_ms_unit_test();  }
-
-
 };    //  end  struct  Syscall  ------------------------  end  struct  Syscall
 
 
@@ -810,6 +795,7 @@ Syscall  sys;    //  xxsy  --------------------------------------  global  sys
 
 struct  Option_Reader    //  xxop  --------------------  struct  Option_Reader
   :  private  Option  {
+
 
   const Option &  o;    //  const access to the Option base class
 
@@ -1230,6 +1216,7 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
 
   static void  ps1  ()  {    //  ------------------------------  Env_Tool  ps1
     //  20200626  todo?  add custom prompts for other shells
+    //  20211030  probably not.  use selective env var passthru instead.
     if  (  st.command[0] == "/bin/bash"
 	   ||  is_busybox ( st.command[0] )  )  {  ps1_bash();  }  }
 
@@ -1496,18 +1483,12 @@ public:
 
 
 
-void  unit_test  ()  {    //  -------------------------------------  unit_test
-  mStr    :: unit_test();
-  oStr    :: unit_test();
-  Argv    :: unit_test();
-  Syscall :: unit_test();  }
-
-
+#ifndef  LXROOT_MAIN_SKIP
 int  main  ( const int argc, str argv[] )  {    //  --------------------  main
-  unit_test();
   if  ( argc < 2 )  {  Lib :: help_print();  }
   mut .argv  =  argv;
   return  Lxroot() .main();  }
+#endif
 
 
 
