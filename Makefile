@@ -79,7 +79,7 @@ static:
 
 
 demo3_iso=$(demo)/dist/archlinux-2021.11.01-x86_64.iso
-demo3_url=https://mirror.rackspace.com/archlinux/iso/2021.06.01/archlinux-2021.11.01-x86_64.iso
+demo3_url=https://mirror.rackspace.com/archlinux/iso/2021.11.01/archlinux-2021.11.01-x86_64.iso
 
 
 demo3-iso-soft:
