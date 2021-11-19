@@ -154,12 +154,10 @@ demo3_u1_create_u2  ()  {    #  --------------------------  demo3_u1_create_u2
 
   trace  apk  add  p7zip  squashfs-tools
 
-  local  iso='archlinux-2021.06.01-x86_64.iso'
+  local  iso='archlinux-2021.11.01-x86_64.iso'
 
-  verify  -v  /dist/"$iso"  md5sum     1bf76d864651cc6454ab273fd3d2226a
-  verify  -v  /dist/"$iso"  sha1sum    6c41a22fb3c5eabfb7872970a9b5653ec47c3ad5
-  verify  -v  /dist/"$iso"  sha256sum  \
-    bd23f81dfb7a224589ccabed7f690c33fbc243bae3f32d295547a64445ae0245
+  verify  -v  /dist/"$iso"  md5sum     e42e562dd005fbe15ade787fe1ddba48
+  verify  -v  /dist/"$iso"  sha1sum    d81bff7f9b05653b048529d741edcce99bc97819
 
   trace  mkdir  -p  /iso-extract
   trace  cd  /iso-extract
