@@ -1,5 +1,26 @@
 
 
+20211226
+
+Set version number to 0.21.0, in preparation for first GitHub release.
+
+
+20211115
+
+Retired 'master' branch.
+Created new 'main' branch.
+The above two chanegs were done for copyright/authorship reasons.
+They removed a trivial patch from a third party.
+Rebuilt demo3.  Shifted parts of demo3 from Makefile to aux/demo.sh.
+The above demo3 changes fixed Issue #7.
+Fixed enum vs. #define MS_ vs ST_ bug.  (Fixing issue #6.)
+
+
+20211030
+
+Moved C++ unit tests to unit.cpp.
+
+
 20211028
 
 Ipmelmented proper fix of GitHub issue #3, via statfs().

@@ -1,7 +1,7 @@
-#! /bin/bash
+#! /bin/sh
 
 
-#  version  20210610
+#  version  20211111
 
 
 set  -o errexit
@@ -9,17 +9,44 @@ set  -o errexit
 
 usage  ()  {    #  ----------------------------------------------------  usage
   echo
-  echo  'usage:'
-  echo  '  bash  demo.sh  demo1  <path>'
-  echo  '  bash  demo.sh  demo3  <path>'
-  echo  '  bash  demo.sh  alpine_extract  <path>  <subdir>'
+  echo  'usage:  bash  demo.sh  [options]'
+  echo
+  echo  'options:'
+  echo  '  demo1  <path>                #  run demo1 in <path>'
+  echo  '  demo3  <path>                #  run demo3 in <path> '
+  echo  '  demo3  <path>  root          #  enter the demo3 environment as root'
   return  ;  }
 
 
+main  ()  {    #  ------------------------------------------------------  main
+  case  "$1"  in
+    (demo1)            "$@"  ;;
+    (demo1_extract)    "$@"  ;;
+    (demo3)            "$@"  ;;
+    (demo3_u1)         "$@"  ;;
+    (demo3_u2)         "$@"  ;;
+    (demo3_u3)         "$@"  ;;
+    (*)                usage  ;  exit  1   ;;  esac
+  exit  ;  }
+
+
 #  These values are used by demo1 and demo1_extract.
-url='https://dl-cdn.alpinelinux.org/alpine/v3.13/releases/x86_64'
-file='alpine-minirootfs-3.13.5-x86_64.tar.gz'
+demo1_tgz='alpine-minirootfs-3.13.5-x86_64.tar.gz'
+demo1_url='https://dl-cdn.alpinelinux.org/alpine/v3.13/releases/x86_64'
 sha256='a103f4f5560d3ae59d53fcc44fe78a42e32e421c0a2981c03c297f23a3965071'
+
+
+#  These values are used by demo3.
+demo3_ver='2021.11.01'
+demo3_iso=archlinux-"$demo3_ver"-x86_64.iso
+demo3_url=https://mirror.rackspace.com/archlinux/iso/"$demo3_ver"
+demo3_md5='e42e562dd005fbe15ade787fe1ddba48'
+demo3_sha1='d81bff7f9b05653b048529d741edcce99bc97819'
+
+#  demo3 uses only a single Arch mirror in hopes of avoiding problems
+#  caused by skew across mirrors.  You may specify a different mirror
+#  below, if you wish.
+demo3_mirrorlist='Server = https://mirror.sfo12.us.leaseweb.net/archlinux/$repo/os/$arch'
 
 
 demo1_run  ()  {    #  --------------------------------------------  demo1_run
@@ -42,7 +69,7 @@ demo1_run  ()  {    #  --------------------------------------------  demo1_run
     demo1_verify
     echo
     trace  mkdir  demo1
-    trace  tar  xzf dist/"$file"  -C demo1  ;  fi
+    trace  tar  xzf dist/"$demo1_tgz"  -C demo1  ;  fi
 
   if  [ ! -f demo1/etc/resolv.conf ]  ;  then
     trace  cp  /etc/resolv.conf  demo1/etc/  ;  fi
@@ -77,6 +104,26 @@ mute  ()  {  >/dev/null  2>/dev/null  "$@"  ;  }    #  -----------------  mute
 trace  ()  {   echo  "+  $@"  ;  "$@"  ;  }    #  ---------------------  trace
 
 
+fetch  ()  {    #  ----------------------------------------------------  fetch
+
+  local  url="$1"  path="$2"
+
+  [ -f "$path" ]  &&  {  echo  "fetch  found  '$path'"  ;  return  ;  }
+
+  echo
+  echo  "fetch  $url"
+  echo
+
+  trace  wget  --no-clobber  -O "$path"  "$url"  &&  return
+
+  echo
+  echo  'fetch  fetch appears to have failed'
+  echo  "  url   $url"
+  echo  "  path  $(  realpath  "$path"  )"
+  echo
+  die  'demo.sh  fetch  die'  ;  }
+
+
 verify  ()  {    #  --------------------------------------------------  verify
 
   #  usage:  verify  [-v]  path  algo  expect
@@ -86,11 +133,13 @@ verify  ()  {    #  --------------------------------------------------  verify
   local  path="$1"  algo="$2"  expect="$3"
 
   if  [ "$verbose" = '1' ]  ;  then  echo  "$algo  $path"  ;  fi
-  local  actual=`  "$algo"  "$path"  `
+  local  actual="$(  "$algo"  "$path"  )"
   actual="${actual%% *}"
 
   if  [ ! "$actual" = "$expect" ]  ||  [ "$verbose" = '1' ]  ;  then
     echo  "verify    $algo  $path"
+    echo  "  path    $(  realpath  "$path"  )"
+    echo  "  size    $(  stat  --format '%s'  "$path"  )"
     echo  "  expect  $expect"
     echo  "  actual  $actual"
     fi
@@ -102,7 +151,7 @@ verify  ()  {    #  --------------------------------------------------  verify
 
 demo1_verify  ()  {    #  --------------------------------------  demo1_verify
 
-  local  path=dist/"$file"
+  local  path=dist/"$demo1_tgz"
   mkdir  -p  dist
   if  [ -e "$path" ]  ;  then
     echo
@@ -110,19 +159,22 @@ demo1_verify  ()  {    #  --------------------------------------  demo1_verify
   else
     echo
     echo  '#  ( Alpine Linux minirootfs - downloading file ...   )'
-    wget  --quiet  --no-clobber  -O "$path"  "$url"/"$file"  ;  fi
+    wget  --no-clobber  -O "$path"  "$demo1_url"/"$demo1_tgz"  ;  fi
 
   verify  "$path"  sha256sum  "$sha256"
   echo  "#  ( Alpine Linux minirootfs - file checksum is valid )"  ;  }
 
 
 demo1_extract  ()  {    #  ------------------------------------  demo1_extract
+
   local  demo="$1"  extract="$2"
+  local  url="$demo1_url"
+
   if  [ -d "$extract" ]  ;  then
-    echo  'demo1_extract  already done'  ;  return  ;  fi
+    echo  "demo1_extract  found  '$extract'"  ;  return  ;  fi
   mkdir  -p  "$demo"  ;  cd  "$demo"  ;  demo1_verify
   mkdir  -p  "$extract"
-  trace  tar  xzf dist/"$file"  -C "$extract"  ;  }
+  trace  tar  xzf dist/"$demo1_tgz"  -C "$extract"  ;  }
 
 
 demo1 ()  {    #  -----------------------------------------------------  demo1
@@ -135,31 +187,42 @@ demo1 ()  {    #  -----------------------------------------------------  demo1
 #  demo 3  -----------------------------------------------------------  demo 3
 
 
-#  demo3 uses only a single mirror in hopes of avoiding problems
-#  caused by mirror skew.  You may specify a different mirror below,
-#  if you wish.
+demo3_verify  ()  {    #  --------------------------------------  demo3_verify
+  [ -f dist/"$iso" ]  ||  fetch  "$url"/"$iso"  dist/"$iso"
+  verify  -v  dist/"$iso"  md5sum     "$demo3_md5"
+  verify  -v  dist/"$iso"  sha1sum    "$demo3_sha1"
+  return  ;  }
 
-demo3_mirrorlist='Server = https://mirror.sfo12.us.leaseweb.net/archlinux/$repo/os/$arch'
+
+demo3_host  ()  {    #  ------------------------------------------  demo3_host
+
+  #  demo3_host is run on the host.
+  #  demo3_host creates userland #1 (Alpine).
+
+  echo
+  echo  "demo3  $*"
+
+  trace  cd  "$demo"
+  demo1_extract  .  demo3
+  demo3_verify
+
+  trace  mkdir  -p  demo3/dist/
+  trace  cp  /etc/resolv.conf  demo3/etc/
+  trace  cp  bin/demo.sh       demo3/dist/
+  trace  ln  -f  dist/"$iso"   demo3/dist/"$iso"
+
+  return  ;  }
 
 
-demo3_u1_create_u2  ()  {    #  --------------------------  demo3_u1_create_u2
+demo3_u1_extract  ()  {    #  ------------------------------  demo3_u1_extract
 
-  if  [ -d /userland2 ]  ;  then
-    echo  'demo3_u1_create_u2  already done'  ;  return  ;  fi
-
-  echo  'demo3_u1_create_u2'
+  [ -d /userland2 ]  &&  {
+    echo  'demo3_u1_extract  found  /userland2'  ;  return  ;  }
 
   if  [ ! -f /root/update ]  ;  then
     trace  apk  update  ;  touch  /root/update  ;  fi
 
   trace  apk  add  p7zip  squashfs-tools
-
-  local  iso='archlinux-2021.06.01-x86_64.iso'
-
-  verify  -v  /dist/"$iso"  md5sum     1bf76d864651cc6454ab273fd3d2226a
-  verify  -v  /dist/"$iso"  sha1sum    6c41a22fb3c5eabfb7872970a9b5653ec47c3ad5
-  verify  -v  /dist/"$iso"  sha256sum  \
-    bd23f81dfb7a224589ccabed7f690c33fbc243bae3f32d295547a64445ae0245
 
   trace  mkdir  -p  /iso-extract
   trace  cd  /iso-extract
@@ -171,7 +234,9 @@ demo3_u1_create_u2  ()  {    #  --------------------------  demo3_u1_create_u2
   trace  sha512sum  -c airootfs.sha512
 
   trace  cd  /iso-extract
-  trace  unsquashfs  -no-xattrs  /iso-extract/arch/x86_64/airootfs.sfs
+  [ -d squashfs-root ]  \
+    ||  trace  unsquashfs  -no-xattrs  /iso-extract/arch/x86_64/airootfs.sfs  \
+    ||  true
   trace  mv  squashfs-root  userland2
   trace  rm  -f  userland2/etc/resolv.conf
   trace  cp  /etc/resolv.conf  userland2/etc/resolv.conf
@@ -190,12 +255,28 @@ demo3_u1_create_u2  ()  {    #  --------------------------  demo3_u1_create_u2
   return  ;  }
 
 
-demo3_u2_create_u3  ()  {    #  --------------------------  demo3_u2_create_u3
+demo3_u1  ()  {    #  ----------------------------------------------  demo3_u1
 
-  if  [ -d /userland3 ]  ;  then
-    echo  'demo3_u2_create_u3  already done'  ;  return  ;  fi
+  #  demo3_u1 is run in userland #1 (Alpine).
+  #  demo3_u1 creates userland #2 (Arch bootstrap).
 
-  echo  'demo3_u2_create_u3'
+  local  iso="$demo3_iso"
+
+  echo
+  echo  'demo3_u1'
+
+  demo3_u1_extract
+
+  trace  mkdir  -p  /userland2/dist/
+  trace  cp  /dist/demo.sh  /userland2/dist/
+
+  return  ;  }
+
+
+demo3_u2_bootstrap  ()  {    #  --------------------------  demo3_u2_bootstrap
+
+  [ -d /userland3 ]  &&  {
+    echo  "demo3_u2_bootstrap  found  /userland3"  ;  return  ;  }
 
   trace  pacman-key  --init
   trace  pacman-key  --populate  archlinux
@@ -215,13 +296,31 @@ demo3_u2_create_u3  ()  {    #  --------------------------  demo3_u2_create_u3
   return  ;  }
 
 
-demo3_u3_finish  ()  {    #    #  ---------------------------  demo3_u3_finish
+demo3_u2  ()  {    #  ----------------------------------------------  demo3_u2
 
-  if  [ -f /usr/bin/chromium ]  ;  then
-    echo  'demo3_u3_finish  already done'  ;  return  ;  fi
+  #  demo3_u2 is run in userland #2 (Arch bootstrap).
+  #  demo3_u2 creates userland #$3 (Arch actual).
 
   echo
-  echo  'demo3_u3_finish'
+  echo  'demo3_u2'
+
+  demo3_u2_bootstrap
+
+  trace  mkdir  -p  /userland3/dist/
+  trace  cp  /dist/demo.sh  /userland3/dist/
+
+  return  ;  }
+
+
+demo3_u3  ()  {    #  ----------------------------------------------  demo3_u3
+
+  #  demo3_3 is run in userland #3 (Arch actual).
+
+  echo
+  echo  'demo3_u3'
+
+  [ -f /usr/bin/chromium ]  &&  {
+    echo  'demo3_u3  found  /usr/bin/chromium'  ;  return  ;  }
 
   trace  mkdir  -p  /tmp/.X11-unix
   trace  pacman  -Sy  --noconfirm  chromium
@@ -229,15 +328,62 @@ demo3_u3_finish  ()  {    #    #  ---------------------------  demo3_u3_finish
   return  ;  }
 
 
-main  ()  {    #  ------------------------------------------------------  main
-  case  "$1"  in
-    (demo1)               "$1"  "$2"        ;;
-    (demo1_extract)       "$1"  "$2"  "$3"  ;;
-    (demo3_u1_create_u2)  "$1"              ;;    #  run in userland1
-    (demo3_u2_create_u3)  "$1"              ;;    #  run in userland2
-    (demo3_u3_finish)     "$1"              ;;    #  run in userland3
-    (*)                 usage  ;  exit  1   ;;  esac
-  exit  ;  }
+demo3_u3_shell  ()  {    #  ----------------------------------  demo3_u3_shell
+
+  mkdir  -p  demo3/userland2/userland3/home/"$USER"  ||  true
+
+  echo
+  echo
+  echo  "(  The Demo #3 guest userland has been created.       )"
+  echo  "(                                                     )"
+  echo  "(  Make will now launch an interactive shell in the   )"
+  echo  "(  Demo #3 guest userland.                            )"
+  echo  "(                                                     )"
+  echo  "(  Please run 'chromium' in this shell to attempt to  )"
+  echo  "(  run Chromium.                                      )"
+  echo  "(                                                     )"
+  echo  "(  Please press ENTER when you are ready to proceed.  )"
+
+  read  discard
+  bin/lxroot  -nx  demo3/userland2/userland3
+
+  return  ;  }
+
+
+demo3_u3_shell_root  ()  {    #  ------------------------  demo3_u3_shell_root
+  trace  cd  "$demo"
+  trace  bin/lxroot  -nr  demo3/userland2/userland3  ;  }
+
+
+demo3  ()  {    #  ----------------------------------------------------  demo3
+
+  local  demo="$1"  mode="$2"
+  local  iso="$demo3_iso"
+  local  url="$demo3_url"
+
+  if  [ "$root" = 'root' ]  ;  then
+    echo
+    echo  'demo3  root'
+    return  ;  fi
+
+  local  u1='demo3'
+  local  u2='demo3/userland2'
+  local  u3='demo3/userland2/userland3'
+
+  demo3_host
+  trace  bin/lxroot  -nr  "$u1"  --  /bin/sh  /dist/demo.sh  demo3_u1
+  trace  bin/lxroot  -nr  "$u2"  --  /bin/sh  /dist/demo.sh  demo3_u2
+  trace  bin/lxroot  -nr  "$u3"  --  /bin/sh  /dist/demo.sh  demo3_u3
+
+  case  "$mode"  in
+    (''    )  demo3_u3_shell       ;;
+    ('root')  demo3_u3_shell_root  ;;
+    (*)       die  "demo3  bad mode  '$mode'"  ;;  esac
+
+  return  ;  }
+
+
+#  main  ---------------------------------------------------------------  main
 
 
 main  "$@"
