@@ -5,7 +5,7 @@
 //  Distributed under GPLv3 (see end of file) WITHOUT ANY WARRANTY.
 
 
-#define  LXROOT_VERSION  "0.0.0 + 20211019"
+#define  LXROOT_VERSION  "0.21.0"    //  version  20211226
 
 
 //  Welcome to the source code for lxroot.
@@ -608,6 +608,7 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
 
 
   void  bind  ( Str target, Str source )  {    //  ------------  Syscall  bind
+    //
     //  from  /usr/include/linux/mount.h
     //    MS_REC        0x 4000
     //    MS_BIND       0x 1000
@@ -620,7 +621,7 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
     //              mount() a second time with MS_REMOUNT | MS_RDONLY.
     //
     //  20210520  I also seem to remember that, when mount is called by a
-    //              non-root user, MS_BIND (often) requires MS_REC.
+    //              non-root user, MS_BIND (often? always?) requires MS_REC.
     //
     //  20210520  It appears that non-root users can only set MS_RDONLY.
     //              Non-root users are not allowed to clear MS_RDONLY.
@@ -761,19 +762,6 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
     return  ( n & copy_these_bits ) | shifted_bits;  }
 
 
-  static void  st_to_ms_unit_test  ()  {    //  ----------  st_to_ms_unit_test
-    assert (  st_to_ms ( ST_RDONLY      ) == MS_RDONLY       );
-    assert (  st_to_ms ( ST_NOSUID      ) == MS_NOSUID       );
-    assert (  st_to_ms ( ST_NODEV       ) == MS_NODEV        );
-    assert (  st_to_ms ( ST_NOEXEC      ) == MS_NOEXEC       );
-    assert (  st_to_ms ( ST_SYNCHRONOUS ) == MS_SYNCHRONOUS  );
-    assert (  st_to_ms ( ST_MANDLOCK    ) == MS_MANDLOCK     );
-    assert (  st_to_ms ( ST_NOATIME     ) == MS_NOATIME      );
-    assert (  st_to_ms ( ST_NODIRATIME  ) == MS_NODIRATIME   );
-    assert (  st_to_ms ( ST_RELATIME    ) == MS_RELATIME     );
-    return;  }
-
-
   void  umount2  ( Str target, int flags )  {   //  --------  Syscall  umount2
     try1( :: umount2, "  umount2  %s  0x%x", target.s, flags );  }
 
@@ -798,10 +786,6 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
     die_pe ( "write  %d  %ld", fd, (long int) count );  }
 
 
-  static void  unit_test  ()  {    //  -------------------  Syscall  unit_test
-    st_to_ms_unit_test();  }
-
-
 };    //  end  struct  Syscall  ------------------------  end  struct  Syscall
 
 
@@ -812,6 +796,7 @@ Syscall  sys;    //  xxsy  --------------------------------------  global  sys
 
 struct  Option_Reader    //  xxop  --------------------  struct  Option_Reader
   :  private  Option  {
+
 
   const Option &  o;    //  const access to the Option base class
 
@@ -1232,6 +1217,7 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
 
   static void  ps1  ()  {    //  ------------------------------  Env_Tool  ps1
     //  20200626  todo?  add custom prompts for other shells
+    //  20211030  probably not.  use selective env var passthru instead.
     if  (  st.command[0] == "/bin/bash"
 	   ||  is_busybox ( st.command[0] )  )  {  ps1_bash();  }  }
 
@@ -1498,18 +1484,12 @@ public:
 
 
 
-void  unit_test  ()  {    //  -------------------------------------  unit_test
-  mStr    :: unit_test();
-  oStr    :: unit_test();
-  Argv    :: unit_test();
-  Syscall :: unit_test();  }
-
-
+#ifndef  LXROOT_MAIN_SKIP
 int  main  ( const int argc, str argv[] )  {    //  --------------------  main
-  unit_test();
   if  ( argc < 2 )  {  Lib :: help_print();  }
   mut .argv  =  argv;
   return  Lxroot() .main();  }
+#endif
 
 
 

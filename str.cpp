@@ -4,7 +4,7 @@
 //  Copyright (c) 2021 Parke Bostrom, parke.nexus at gmail.com
 //  Distributed under GPLv3 (see end of file) WITHOUT ANY WARRANTY.
 
-//  version  20211019
+//  version  20211030
 
 
 
@@ -83,6 +83,7 @@ struct  mFrag  {    //  xxmf  ---------------------------------  struct  mFrag
 
 struct  mStr  {    //  xxms  -----------------------------------  struct  mStr
 
+
   //  mStr is a convenience wrapper around a mstr (i.e. 'const char *').
   //  s points to either (a) nullptr or (b) a null-terminated string.
   //  an mStr does not own s.  (But see also derived class oStr.)
@@ -146,9 +147,6 @@ struct  mStr  {    //  xxms  -----------------------------------  struct  mStr
       while  ( c[0] == '/'         )  {  c++;  }
       if     ( c[0] == '\0'        )  {  return  Frag ( a, b-1 );  }
       a  =  c;  }  }
-
-
-  static void  basename_test  ( Str s, Str expect );    //  ------------------
 
 
   Frag  capture_until  ( char c )  const  {    //  ------  mStr  capture_until
@@ -235,28 +233,6 @@ struct  mStr  {    //  xxms  -----------------------------------  struct  mStr
     return  skip_all('/') .capture_until('/');  }
 
 
-  static void  unit_test  ()  {    //  ----------------------  mStr  unit_test
-
-    basename_test ( "",          ""    );
-    basename_test ( "/",         "/"   );
-    basename_test ( "//",        "/"   );
-    basename_test ( "///",       "/"   );
-    basename_test ( "a",         "a"   );
-    basename_test ( "/b",        "b"   );
-    basename_test ( "c/",        "c"   );
-    basename_test ( "/d/",       "d"   );
-    basename_test ( "e/f",       "f"   );
-    basename_test ( "/g/h",      "h"   );
-    basename_test ( "abc",       "abc" );
-    basename_test ( "/def",      "def" );
-    basename_test ( "ghi/",      "ghi" );
-    basename_test ( "/jkl/",     "jkl" );
-    basename_test ( "mno/pqr",   "pqr" );
-    basename_test ( "/stu/vwx",  "vwx" );
-    basename_test ( "./xyz",     "xyz" );
-
-    return;  }
-
 
 };    //  end  struct  mStr  ------------------------------  end  struct  mStr
 
@@ -289,7 +265,6 @@ Concat_2  s  ( Frag a, Frag b = 0, Frag c = 0 )  {    //  xxs  ----  global  s
 
 Concat_2  s  ( Str a, Str b = 0, Str c = 0 )  {    //  xxs  -------  global  s
   return  Concat_2 ( a, b, c );  }
-
 
 
 
@@ -339,9 +314,6 @@ struct  oStr  :  mStr   {    //  xxos  -------------------------  struct  oStr
     oStr  rv;    rv.s=s.s;    rv.n=s.n();    return rv;  }
 
 
-  static void  unit_test  ();    //  ------------------------  oStr  unit_test
-
-
 };    //  end  struct  oStr  ------------------------------  end  struct  oStr
 
 
@@ -388,32 +360,6 @@ Concat  operator +  ( str a, Frag b )  {    //  --------------------  ::  op +
 
 Concat  operator +  ( str a, Str b )  {    //  ---------------------  ::  op +
   return  Frag(a) + b;  }
-
-
-void  mStr :: basename_test  ( Str s, Str expect )  {    //  --  basename_test
-    if  ( s.basename() == expect )  {  return;  }
-    oStr  actual  =  s.basename();
-    printe ( "basename_test  failed\n" );
-    printe ( "  s       %s\n", s.s      );
-    printe ( "  expect  %s\n", expect.s );
-    printe ( "  actual  %s\n", actual.s );
-    abort();  }
-
-
-void  oStr :: unit_test  ()  {    //  -----------------------  oStr  unit_test
-    Str   a   =  "a";
-    Str   b   =  "b";
-    oStr  ab  =  a + b;
-    assert  ( ab == "ab" );
-    assert  ( ab == a+b  );
-    Frag  c   =  "c";
-    Frag  d   =  "d";
-    oStr  cd  =  c + "=" + d;
-    assert  ( cd == "c=d" );
-    oStr  ef  =  cd + "ef" + "gh";
-    assert  ( ef == "c=defgh" );
-    assert  ( cd == "c=d" );
-    ;;;  }
 
 
 //  end  struct  Concat  --------------------------------  end  struct  Concat
@@ -486,29 +432,6 @@ struct  Argv  {    //  xxar  -----------------------------------  struct  Argv
   void  print  ( Str s )  const  {    //  -----------------------  Argv  print
     for  (  Argv o (*this)  ;  o  &&  o.p[0]  ;  o++  )  {
       printe  ( "%s%s\n", s.s, o[0].s );  }  }
-
-
-  static void  unit_test  ()  {    //  ----------------------  Argv  unit_test
-
-    str  p[]  =  { "a=1", "b=2", "c=3", nullptr };
-    Argv  a(p);
-
-    assert ( a[0] == p[0] );
-    assert ( a[1] == p[1] );
-    assert ( a[2] == p[2] );
-    assert ( a[3] == p[3] );
-
-    assert ( a[0] == a.p[0] );
-    assert ( a[1] == a.p[1] );
-    assert ( a[2] == a.p[2] );
-    assert ( a[3] == a.p[3] );
-    assert ( a.concat() == "a=1  b=2  c=3" );
-
-    assert ( a.env_get("a") == p[0] );
-    assert ( a.env_get("b") == p[1] );
-    assert ( a.env_get("c") == p[2] );
-
-    ;;;  }
 
 
 };    //  end  struct  Argv  ------------------------------  end  struct  Argv
