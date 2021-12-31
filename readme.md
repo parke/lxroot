@@ -6,6 +6,8 @@ Lxroot is a lightweight alternative to chroot, Docker, and other software virtua
 
 Lxroot allows a non-root user to quickly and easily create a "chroot-style" virtual software environment (via Linux namespaces), and then run one or more programs (a "guest userland") inside that environment.
 
+**[[ -- Update December 2021 --** If you are interested in Lxroot, I recommend that you also look at **[my `vland` project](https://github.com/parke/vland)**.  `vland` is a high-level convenience wrapper around Lxroot.  `vland` is the easiest way to start using Lxroot. **-- ]]**
+
 For example, with Lxroot a non-root user can...
 
 -  simultaneously run multiple, different guest userlands on a single Linux host
@@ -200,12 +202,12 @@ You may also wish to look at the `demo.sh` file.
 
 Below is the output of `lxroot --help-more`:
 
-    usage:  lxroot  [[mode] newroot]  [options]  [--]  [command [arg ...] ]
+    usage:  lxroot  [mode] newroot  [options]  [-- command [arg ...]]
     
     options
       -short                      one or more short options
       --long-option               a long option
-      n=v                         set an environment variable
+      name=value                  set an environment variable
       [mode]  newroot             set and bind the newroot
       [mode]  path                bind a full or partial overlay
       'src'   [mode]  path        set the source for partial overlays
@@ -402,41 +404,69 @@ Below is the output of `lxroot --help-more`:
     COMMAND
     
     The command-option specifies the command that will be executed inside
-    the lxroot environment.
+    the lxroot environment.  The command-option must be preceded by '--'.
     
     If no command is specified, lxroot will attempt to find and execute an
     interactive shell inside the lxroot environment.
-    
-    Note the following lexical ambiguity: a path-like argument may specify
-    either (a) an overlay option or (b) the command option.
-    
-    lxroot resolves this ambiguity by looking for a directory at the path.
-    If a directory exists, lxroot interprets the path as an overlay option.
-    If no such directory exists, lxroot interprets the path as a command.
-    
-    Note that lxroot does not verify that the command actually exists
-    inside newroot.  If the command does not exist, then the call to
-    exec() will will fail and lxroot will exit with status 1.
-    
-    To force a path to be interpreted as a command, proceed the path with
-    the option '--'.
 
 ###  Other software virtualization tools
 
 For reference, here is a partial list of some other software virtualization tools, in approximate(?) order from lightest to heaviest:
--  `chroot`
--  `unshare`
--  Lxroot
--  Proot
--  Firejail
--  Bubblewrap (Flatpak)
--  LXC / LXD
--  podman.io
--  udocker
--  Docker
--  Bubblejail (requires Python)
 
-Apparently unmaintained?
+|  Virtualization tool   |  Language  |  Approximate SLOC             |  Dependencies                      | Static binary |
+|  ---                   |  :-:       |  ---                          |  ---                               | :-:           |
+|  `chroot`              |  C         |  370 (plus various includes)  |  gnulib, other parts of coreutils  |               |
+|  `unshare`             |  C         |  620 (plus various includes)  |  other parts of util-linux?        |               |
+|  **Lxroot**            |  C++       |  1,400                        |  standard libraries only           |  169 kB       |
+|  bubblewrap (Flatpak)  |  C         |  4,200                        |  standard libraries only?          |               |
+|  Bubblejail            |  Python    |  2,700 + bubblewrap           |  Python + bubblewrap (and more?)   |               |
+|  PRoot                 |  C         |  21,000                       |  libarchive, libtalloc, uthash(?)  |  1,046 kB     |
+|  udocker               |  Python    |  21,000                       |  Python + more                     |               |
+|  Firejail              |  C         |  43,000                       |  (possibly none?)                  |               |
+|  Singularity           |  Go        |  72,000                       |  (not yet researched)              |               |
+|  LXC                   |  C         |  77,000                       |  (not yet researched)              |               |
+|  LXD                   |  Go        |  190,000                      |  (not yet researched)              |               |
+|  podman.io             |  Go        |  1,100,000                    |  (not yet researched)              |               |
+|  Docker                |  Go        |  10,000,000                   |  (not yet researched)              |               |
+|  OpenVZ                |  C         |  custom Linux kernel          |  requires a custom Linux kernel    |               |
 
--  Fakeroot-ng
--  sydbox
+Sources:  
+*  **[chroot](https://www.gnu.org/software/coreutils/coreutils.html)**
+[sloc](https://github.com/coreutils/coreutils/blob/master/src/chroot.c)
+[deps](https://www.gnu.org/software/gnulib/)
+*  **[unshare](https://git.kernel.org/pub/scm/utils/util-linux/util-linux.git)**
+[sloc](https://github.com/karelzak/util-linux/blob/master/sys-utils/unshare.c)
+*  **[Lxroot](https://github.com/parke/lxroot)**
+static
+*  **[bubblewrap](https://github.com/containers/bubblewrap)**
+[sloc](https://github.com/containers/bubblewrap)
+[openhub](https://www.openhub.net/p/bwrap)
+*  **[Bubblejail](https://github.com/igo95862/bubblejail)**
+[sloc](https://github.com/igo95862/bubblejail/tree/master/bubblejail)
+*  **[PRoot](https://proot-me.github.io/)**
+[sloc](https://www.openhub.net/p/proot)
+[deps](https://github.com/proot-me/proot#dependencies)
+[static](https://github.com/proot-me/proot/releases)
+*  **[udocker](https://github.com/indigo-dc/udocker)**
+[sloc](https://www.openhub.net/p/udocker)
+[deps](https://indigo-dc.github.io/udocker/installation_manual.html#1-dependencies)
+[more deps](https://indigo-dc.github.io/udocker/installation_manual.html#6-external-tools-and-libraries)
+*  **[Firejail](https://firejail.wordpress.com/)**
+[sloc](https://www.openhub.net/p/firejail)
+*  **[LXC](https://linuxcontainers.org/)**
+[sloc](https://www.openhub.net/p/lxc)
+*  **[LXD](https://linuxcontainers.org/)**
+[sloc](https://www.openhub.net/p/lxd)
+*  **[Podman](https://podman.io/)**
+[sloc](https://www.openhub.net/p/podman)
+*  **[Docker](https://www.docker.com/)**
+[sloc](https://www.openhub.net/p/docker)
+*  **[OpenVZ](https://openvz.org/)**
+
+### Possibly also of interest
+
+*  **[binctr](https://github.com/genuinetools/binctr)** as [mentioned by bubblewrap](https://github.com/containers/bubblewrap#related-project-comparison-runcbinctr)
+*  **[fakeroot-ng](https://fakeroot-ng.lingnu.com/)**
+*  **[runc](https://github.com/opencontainers/runc)** as [mentioned by bubblewrap](https://github.com/containers/bubblewrap#related-project-comparison-runcbinctr)
+*  **[Sandstorm](https://sandstorm.io/)** as [mentioned by bubblewrap](https://github.com/containers/bubblewrap#related-project-comparison-sandstormio)
+*  **[sydbox](https://pink.exherbo.org/)** at [sr.ht](https://sr.ht/~alip/sydbox/), [github mirror](), [legacy homepage?](https://sydbox.exherbo.org/)
