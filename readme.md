@@ -1,12 +1,15 @@
 # Lxroot - a software virtualization tool
 
+###  News
+
+* 2021 Dec - First version of `vland` published: [more info](https://github.com/parke/vland)
+* 2021 Nov - Lxroot presented at PackagingCon 2021: [abstract](https://pretalx.com/packagingcon-2021/talk/PMPUSW/), [video](https://www.youtube.com/watch?v=1rw7ww0k_mk), [slides](https://pretalx.com/media/packagingcon-2021/submissions/PMPUSW/resources/20211110_Lxroot_7ILURuB.pdf)
+
 ###  About
 
 Lxroot is a lightweight alternative to chroot, Docker, and other software virtualization tools.
 
 Lxroot allows a non-root user to quickly and easily create a "chroot-style" virtual software environment (via Linux namespaces), and then run one or more programs (a "guest userland") inside that environment.
-
-**[[ -- Update December 2021 --** If you are interested in Lxroot, I recommend that you also look at **[my `vland` project](https://github.com/parke/vland)**.  `vland` is a high-level convenience wrapper around Lxroot.  `vland` is the easiest way to start using Lxroot. **-- ]]**
 
 For example, with Lxroot a non-root user can...
 
