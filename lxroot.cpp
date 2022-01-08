@@ -5,7 +5,7 @@
 //  Distributed under GPLv3 (see end of file) WITHOUT ANY WARRANTY.
 
 
-#define  LXROOT_VERSION  "0.21.0"    //  version  20211226
+#define  LXROOT_VERSION  "0.22.0"    //  version  20220108
 
 
 //  Welcome to the source code for lxroot.
@@ -424,8 +424,8 @@ struct  State  {    //  xxst  ---------------------------------  struct  State
 
   Argv         argv;
   Env          env;         //  specifies the new environment
-  const uid_t  uid           =  getuid();
-  const gid_t  gid           =  getgid();
+  const uid_t  uid           =  getuid();    //  uid prior to unshare()
+  const gid_t  gid           =  getgid();    //  gid prior to unshare()
   Fgetpwent    outside       ;    //  from /etc/passwd outside the lxroot
   Fgetpwent    inside        ;    //  from /etc/passwd inside  the lxroot
   mopt         opt_env       =  o_none;    //  pass in environment
@@ -1140,9 +1140,12 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
     const Fgetpwent &  in   =  st .inside;
     const Fgetpwent &  out  =  st .outside;
 
-    mut .env .soft ( "HOME",    in.dir  || getenv("HOME")    || out.dir  );
-    mut .env .soft ( "LOGNAME", in.name || getenv("LOGNAME") || out.name );
-    mut .env .soft ( "USER",    in.name || getenv("USER")    || out.name );
+    auto  get  =  []  ( Str name )  {
+      return  st .opt_root  ?  nullptr  :  Lib :: getenv ( name );  };
+
+    mut .env .soft ( "HOME",    in.dir  || get("HOME")    || out.dir  );
+    mut .env .soft ( "LOGNAME", in.name || get("LOGNAME") || out.name );
+    mut .env .soft ( "USER",    in.name || get("USER")    || out.name );
 
     auto  vars  =  { "LANG", "LC_COLLATE",  "TERM", "TZ" };
     for  ( auto s : vars )  {  mut .env .soft_copy ( s );  }  }
@@ -1308,7 +1311,7 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
 
   void  fgetpwent  ()  {    //  ---------------------------  Lxroot  fgetpwent
-    mut .outside .fgetpwent ( "/etc/passwd", st .uid );
+    mut .outside .fgetpwent ( "/etc/passwd", getuid() );
     mut .inside  .fgetpwent ( st.newroot + "/etc/passwd", getuid() );
     Env_Tool :: before_pivot();  }
 
@@ -1422,10 +1425,18 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
 
   void  chdir  ()  {    //  -----------------------------------  Lxroot  chdir
-    if  (  st .chdir    )  {  sys .chdir ( st .chdir   );  return;  }
-    if  (  st .workdir  )  {  sys .chdir ( st .workdir );  return;  }
-    Str  home  =  st .env .get ( "HOME" );
-    if  (  st .newroot  &&  is_dir ( home )  )  { sys .chdir ( home );  }  }
+
+    auto  chdir_home  =  [&]  ()  {
+      Str  home  =  st .env .get ( "HOME" );
+      if  (  st .newroot  &&  is_dir ( home )  )  { sys .chdir ( home );  }  };
+
+    auto  chdir2  =  [&]  ( Str s )  {
+      if  ( s[0] != '/' )  {  chdir_home();  }
+      sys .chdir ( s );  };
+
+    if  ( st .chdir   )  {  chdir2 ( st .chdir   );  return;  }
+    if  ( st .workdir )  {  chdir2 ( st .workdir );  return;  }
+    chdir_home();  }
 
 
   void  xray  ()  {    //  -------------------------------------  Lxroot  xray
@@ -1473,7 +1484,7 @@ public:
     umount2();       //  after proc
     /*  pivot to umount2 should be as tight as possible  */
     env();           //  after pivot, therefore after umount2
-    chdir();         //  after umount2 ( because put_old may shadow $HOME !! )
+    chdir();         //  after env
     xray();
     exec();          //  last
     return  1;  }    //  exec failed!

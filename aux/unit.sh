@@ -1,7 +1,7 @@
 #! /bin/bash
 
 
-#  unit.sh  version  20210803
+#  unit.sh  version  20220105
 
 
 set  -o errexit
@@ -54,7 +54,7 @@ run  ()  {    #  --------------------------------------------------------  run
   echo  "  status     $status"
   echo
   echo  "  expect     '$expect'"
-  echo  "  actual     '$( echo "$actual" | head -n 1)'"
+  echo  "  actual     '$( echo "$actual" | head -n 1)'    length ${#actual}"
 
   local  f='  %-9s  %s\n'
   echo
@@ -112,6 +112,18 @@ prepare_users  ()  {    #  ------------------------------------  prepare_users
   echo  'unit.sh  done  prepare_users'  ;  }
 
 
+etc_passwd  ()  {    #  ------------------------------------------  etc_passwd
+
+  #  usage:  etc_passwd  none     #  use an empty     /etc/passwd
+  #          etc_passwd  orig     #  use the original /etc/passwd
+  #          etc_passwd  user2    #  use a custom     /etc/passwd
+
+  pushd  "$unit/nr/etc"
+  cp  group-"$1"   group
+  cp  passwd-"$1"  passwd
+  popd  ;  }
+
+
 home_make  ()  {    #  --------------------------------------------  home_make
   mkdir  -p  "$unit/nr/home/$USER"
   mkdir  -p  "$unit/nr/home/user1"
@@ -123,6 +135,7 @@ home_make  ()  {    #  --------------------------------------------  home_make
 
 home_remove  ()  {    #  ----------------------------------------  home_remove
   rm_soft     "$unit/nr/home/user2/foo"
+  rm_soft     "$unit/nr/root/aaa/bbb"
   rm_soft     "$unit/nr/root/foo"
   rm_soft     "$unit/nr/home/$USER/.ash_history"
   rm_soft     "$unit/nr/home/user1/.ash_history"
@@ -133,15 +146,10 @@ home_remove  ()  {    #  ----------------------------------------  home_remove
   rmdir_soft  "$unit/nr/home/user2/ape"
   rmdir_soft  "$unit/nr/home/user2"
   rmdir_soft  "$unit/nr/home/user3"
+  rmdir_soft  "$unit/nr/root/aaa"
   rmdir_soft  "$unit/nr/root"
   return  ;  }
 
-
-user_activate  ()  {    #  ------------------------------------  user_activate
-  pushd  "$unit/nr/etc"
-  cp  group-"$1"   group
-  cp  passwd-"$1"  passwd
-  popd  ;  }
 
 
 phase_one  ()  {    #  --------------------------------------------  phase_one
@@ -169,7 +177,7 @@ test_no_home  ()  {    #  --------------------------------------  test_no_home
 
   echo  ;  echo  "-  test_no_home"
 
-  user_activate  none
+  etc_passwd  none
   home_remove
   phase_one
 
@@ -202,7 +210,7 @@ test_no_home  ()  {    #  --------------------------------------  test_no_home
 
   #  test  $unit/nr/etc/passwd-user2
 
-  user_activate  user2
+  etc_passwd  user2
 
   run2  '/home/user2'    --  /bin/sh  -c 'echo $HOME'
   run2  'user2'          --  /bin/sh  -c 'echo $LOGNAME'
@@ -212,7 +220,7 @@ test_no_home  ()  {    #  --------------------------------------  test_no_home
 
   #  test  explicit environment variables
 
-  user_activate  orig
+  etc_passwd  orig
 
   run3  '/home/user3'    -- /bin/sh -c 'echo $HOME'
   run3  'user3'          -- /bin/sh -c 'echo $LOGNAME'
@@ -233,37 +241,55 @@ test_home  ()  {    #  --------------------------------------------  test_home
 
   echo  ;  echo  "-  test_home"
 
-  user_activate  none    #  nr/etc/passwd miss
+  etc_passwd  none    #  nr/etc/passwd miss
   home_make
   phase_one
+      #  run1  enivornment variables  none
+      #  run2  environment variables  fixed
+      #  run3  environment variables  fixed, but overriden by n=v options
 
   #  20210624  The two below commented tests are too restrictive.
 
-  #  run1  "$HOME"          -- /bin/sh -c 'echo $HOME'       #  /etc/passwd
+  #  run1  "$HOME"          -- /bin/sh -c 'echo $HOME'    #  host /etc/passwd
   run2  "/home/user1"    -- /bin/sh -c 'echo $HOME'       #  host env
   run3  '/home/user3'    -- /bin/sh -c 'echo $HOME'       #  explicit n=v
-  #  run1  "$HOME"          -- pwd                           #  /etc/passwd
+  #  run1  "$HOME"          -- pwd                        #  host /etc/passwd
   run2  '/home/user1'    -- pwd                           #  host env
   run3  '/home/user3'    -- pwd                           #  explicit n=v
 
-  user_activate  user2    #  nr/etc/passwd hit
+  etc_passwd  user2    #  nr/etc/passwd hit
 
-  run1  '/home/user2'    -- /bin/sh -c 'echo $HOME'       #  nr/etc/passwd
-  run2  '/home/user2'    -- /bin/sh -c 'echo $HOME'       #  nr/etc/passwd
+  run1  '/home/user2'    -- /bin/sh -c 'echo $HOME'       #  nr /etc/passwd
+  run2  '/home/user2'    -- /bin/sh -c 'echo $HOME'       #  nr /etc/passwd
   run3  '/home/user3'    -- /bin/sh -c 'echo $HOME'       #  explicit n=v
-  run1  "/home/user2"    -- pwd                           #  nr/etc/passwd
-  run2  '/home/user2'    -- pwd                           #  nr/etc/passwd
+  run1  "/home/user2"    -- pwd                           #  nr /etc/passwd
+  run2  '/home/user2'    -- pwd                           #  nr /etc/passwd
   run3  '/home/user3'    -- pwd                           #  explicit n=v
 
-  #  as root,  nr/etc/passwd hit
+  return  ;  }
 
-  user_activate  orig
 
-  run1  '/root'          -r -- /bin/sh -c 'echo $HOME'    #  nr/etc/passwd
-  run2  '/root'          -r -- /bin/sh -c 'echo $HOME'    #  nr/etc/passwd
+test_home_root  ()  {    #  ----------------------------------  test_home_root
+
+  home_make
+  phase_one
+
+  etc_passwd  orig    # use original /etc/passwd
+
+  run1  '/root'          -r -- /bin/sh -c 'echo $HOME'    #  nr /etc/passwd
+  run2  '/root'          -r -- /bin/sh -c 'echo $HOME'    #  nr /etc/passwd
   run3  '/home/user3'    -r -- /bin/sh -c 'echo $HOME'    #  explicit n=v
-  run1  '/root'          -r -- pwd                        #  nr/etc/passwd
-  run2  '/root'          -r -- pwd                        #  nr/etc/passwd
+  run1  '/root'          -r -- pwd                        #  nr /etc/passwd
+  run2  '/root'          -r -- pwd                        #  nr /etc/passwd
+  run3  '/home/user3'    -r -- pwd                        #  explicit n=v
+
+  etc_passwd  none    #  use empty /etc/passwd
+
+  run1  '/root'          -r -- /bin/sh -c 'echo $HOME'    #  host /etc/passwd
+  run2  '/root'          -r -- /bin/sh -c 'echo $HOME'    #  host /etc/passwd
+  run3  '/home/user3'    -r -- /bin/sh -c 'echo $HOME'    #  explicit n=v
+  run1  '/root'          -r -- pwd                        #  host /etc/passwd
+  run2  '/root'          -r -- pwd                        #  host /etc/passwd
   run3  '/home/user3'    -r -- pwd                        #  explicit n=v
 
   return  ;  }
@@ -273,7 +299,7 @@ test_readauto  ()  {    #  ------------------------------------  test_readauto
 
   echo  ;  echo  "-  test_readauto"
 
-  user_activate  user2
+  etc_passwd  user2
   home_make
   env1=(  env  -  )  lxr1=()  cmd1=()
 
@@ -527,15 +553,43 @@ test_chdir  ()  {    #  ------------------------------------------  test_chdir
   run1  '/ape'           ./lxr  ro nr wd /ape  --  pwd
   run1  ''               ./lxr  ro nr wd /ape  --  touch foo
 
+  run1  '/tmp'           ./lxr  ro nr cd /tmp  --  pwd
+  run1  '/tmp'           ./lxr  ro nr wd /tmp  --  pwd
+  run1  'err  1-'        ./lxr  ro nr cd /tmp  --  touch foo
+  run1  ''               ./lxr  ro nr wd /tmp  --  touch foo
+
   run1  'err  1-'        ./lxr  ro nr wd /tmp  --  touch /foo
   run1  'err  1-'        ./lxr  ro nr wd /tmp  --  touch /ape/foo
   run1  ''               ./lxr  ro nr wd /tmp  --  touch /tmp/foo
-  run1  '/tmp'           ./lxr  ro nr wd /tmp  --  pwd
-  run1  ''               ./lxr  ro nr wd /tmp  --  touch foo
+
+  return  ;  }
 
 
-  #  20210623
-  #  run1  'err  1-'               ./lxr  ro nr wd /tmp  --trace  --  touch foo
+test_chdir_root  ()  {    #  --------------------------------  test_chdir_root
+
+  #  env1=()  lxr1=()  cmd1=()    #  20220105
+  env1=(  env  -  )  lxr1=()  cmd1=()
+
+  mkdir  -p        nr/root/aaa
+  echo   'ccc'  >  nr/root/aaa/bbb
+
+  etc_passwd  orig    #  original inner /etc/passwd
+
+  run1  '/root'          ./lxr  -r nr         --  /bin/sh -c 'echo $HOME'
+  run1  '/root'          ./lxr  -r nr         --  pwd
+  run1  '/root/aaa'      ./lxr  -r nr cd aaa  --  pwd
+  run1  'ccc'            ./lxr  -r nr cd aaa  --  cat bbb
+  run1  'ccc'            ./lxr  -r nr wd aaa  --  cat bbb
+
+  etc_passwd  none    #  empty inner /etc/passwd
+
+  run1  '/root'          ./lxr  -r nr         --  /bin/sh -c 'echo $HOME'
+  run1  '/root'          ./lxr  -r nr         --  pwd
+  run1  '/root/aaa'      ./lxr  -r nr cd aaa  --  pwd
+  run1  'ccc'            ./lxr  -r nr cd aaa  --  cat bbb
+  run1  'ccc'            ./lxr  -r nr wd aaa  --  cat bbb
+
+  #  etc_passwd  user2  ;  test_chdir_2_inner
 
   return  ;  }
 
@@ -559,7 +613,7 @@ test_options  ()  {    #  --------------------------------------  test_options
 
   echo  ;  echo  "-  test_options"
 
-  user_activate  user2
+  etc_passwd  user2
   home_make
 
   if  [ -d '/tmp/.X11-unix' ]  ;  then  test_x11  ;  fi
@@ -640,11 +694,13 @@ main  ()  {    #  ------------------------------------------------------  main
 
   test_no_home
   test_home
+  test_home_root
   test_readauto
   test_full_overlay
   test_partial_overlay
   test_bind
   test_chdir
+  test_chdir_root
   test_options
 
   #  echo  ;  echo  'unit.sh  additional tests disabled'  ;  exit  1
