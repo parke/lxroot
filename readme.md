@@ -17,20 +17,23 @@
 
 While you can run `lxroot` directly, I recommend learning `vland` first.
 
-[`vland`](https://github.com/parke/vland) is a virtual userland manager.  `vland` is implemented as a convenience wrapper around `lxroot`.  `vland` can automatically download, install, and configure a guest userland for use with `lxroot`.  Both `vland` and `lxroot` operate without root access.
+[**`vland`**](https://github.com/parke/vland) is a virtual userland manager.  `vland` is implemented as a convenience wrapper around `lxroot`.  `vland` can automatically download, install, and configure a guest userland for use with `lxroot`.  Both `vland` and `lxroot` operate without root access.
 
 
 ###  Supported guest Linux distributions
 
 The below table summarizes the Linux distributions that I have used as guests with `vland` and `lxroot`.  
-Other Linux distributions may also work inside `lxroot`.
 
 |  Distro  |  Can install root filesystem?  |  Can install packages?  |  Can build packages?  |
 |  :--     |  :-:                           |  :-:                    |  :-:                  |
 |  Alpine  |  yes                           |  yes                    |  yes                  |
 |  Arch    |  yes                           |  yes                    |  yes                  |
 |  Ubuntu  |  work in progress              |  work in progress       |  unknown              |
-|  Void    |  yes                           |  probably yes?          |  unknown              |
+|  Void    |  yes                           |  probably yes?          |  maybe??              |
+
+Other Linux distributions may also work inside `lxroot`.  (Some level of custom shimming may be required.)
+
+Due to `lxroot`'s safety, simplicity, efficiency, and ability to run without root access, `lxroot` has [some limitations](https://github.com/parke/lxroot/wiki/limitations) that may not be present in more heavyweight virtualization tools.  These limitations may or may not affect your particular use case.
 
 
 ### Learn more
