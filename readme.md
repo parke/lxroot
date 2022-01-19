@@ -65,3 +65,5 @@ Due to `lxroot`'s safety, simplicity, efficiency, and ability to run without roo
    *  [tutorial](https://github.com/parke/lxroot/wiki/tutorial) - installation and usage
    *  [man page](https://github.com/parke/lxroot/wiki/man_page)
    *  [limitations](https://github.com/parke/lxroot/wiki/limitations)
+
+<!--  version  20220119.0  -->
