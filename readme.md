@@ -3,23 +3,39 @@
 
 ### About Lxroot
 
-`lxroot` is a lightweight alternative to `chroot`, Docker, and other software virtualization tools.
+`lxroot` is a lightweight and safe alternative to `chroot`, Docker, and other software virtualization tools.
 
 `lxroot` allows a non-root user to easily and safely create a "chroot-style" virtual software environment (via Linux namespaces), and then run one or more programs (a "guest userland") inside that environment.
 
-`lxroot` has many different [use cases](https://github.com/parke/lxroot/wiki/use_cases).
+
+###  Quickstart tutorial
+
+`vland` is a convenience wrapper around `lxroot`.  The quickest way to start using `lxroot` is to use `vland`.  For example:
+
+```
+$  wget  https://github.com/parke/vland/raw/main/vland
+$  /bin/sh  vland  --create  arch  arch-guest
+$  /bin/sh  vland  --pkg  arch-guest  install  chromium
+$  /bin/sh  vland  arch-guest  -nx  --  chromium
+```
+
+The above commands will use `vland` to: create an Arch Linux guest named `arch-guest`, and then install and run the Chromium web browser.  (The guest will be created inside `$HOME/.local/vland`.)
+
+`vland` can also build packages inside a guest.  For example, the below commands will build and install Arch Linux's `lua` package:
+
+```
+$  /bin/sh  vland  --pkg  arch-guest  build-install  lua
+$  /bin/sh  vland  arch-guest  --  lua  -v
+```
+
+`lxroot` is a small C++ program.  `vland` is a single file Dash shell script.  Both run without root access.
+
+Learn more by reading the [**`vland` tutorial**](https://github.com/parke/vland/wiki/tutorial) and the [**`lxroot` tutorial**](https://github.com/parke/lxroot/wiki/tutorial).
 
 
 ### Videos
 
 -  Lxroot presentation at PackagingCon 2021:  [**abstract**](https://pretalx.com/packagingcon-2021/talk/PMPUSW/)  |  [**slides**](https://pretalx.com/media/packagingcon-2021/submissions/PMPUSW/resources/20211110_Lxroot_7ILURuB.pdf)  |  [**video**](https://www.youtube.com/watch?v=1rw7ww0k_mk)
-
-
-### Lxroot and `vland`
-
-While you can run `lxroot` directly, I recommend learning `vland` first.
-
-[**`vland`**](https://github.com/parke/vland) is a virtual userland manager.  `vland` is implemented as a convenience wrapper around `lxroot`.  `vland` can automatically download, install, and configure a guest userland for use with `lxroot`.  Both `vland` and `lxroot` operate without root access.
 
 
 ###  Supported guest Linux distributions
