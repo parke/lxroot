@@ -19,9 +19,9 @@ $  /bin/sh  vland  --pkg  arch-guest  install  chromium
 $  /bin/sh  vland  arch-guest  -nx  --  chromium
 ```
 
-The above commands will use `vland` to: create an Arch Linux guest named `arch-guest`, and then install and run the Chromium web browser.  (The guest will be created inside `$HOME/.local/vland`.)
+The above commands create an Arch Linux guest named `arch-guest`, and then install and run the Chromium web browser.  (The guest will be created inside `$HOME/.local/vland`.)
 
-`vland` can also build packages inside a guest.  For example, the below commands will build and install Arch Linux's `lua` package:
+`vland` can also build packages.  For example, the below commands will build and install Arch Linux's `lua` package:
 
 ```
 $  /bin/sh  vland  --pkg  arch-guest  build-install  lua
