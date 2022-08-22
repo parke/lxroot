@@ -1,12 +1,11 @@
 
 
 //  help.cpp  -  Create and use chroot-style virtual software environments.
-//  Copyright (c) 2021 Parke Bostrom, parke.nexus at gmail.com
+//  Copyright (c) 2022 Parke Bostrom, parke.nexus at gmail.com
 //  Distributed under GPLv3 (see end of file) WITHOUT ANY WARRANTY.
 
-//  version  20211019
 
-
+//  version  20220822
 
 
 const char *  help  =    //  xxhe  -------------------------------------  help
@@ -34,22 +33,47 @@ const char *  help2  =    //  xxhe  -----------------------------------  help2
 "";    //  end  help2  -------------------------------------------  end  help2
 
 
-//  short options  ( for plannig purposes only, possibly inaccurate )
-//  .           .           .           .           .           .
-//  a -         f - hostfs  k -         p - PID     u - UID     z
-//  b -         g -         l -         q -         v - verbose
-//  c -         h - hstname m - MOUNT   r root      w write
-//  d - dbus    i -         n NET       s - /sys    x x11
-//  e environ   j -         o -         t           y
+//  short options  --------------------------------------------  short options
 //
-//  A           F           K           P           U           Z
-//  B           G           L           Q           V
-//  C           H           M           R           W
-//  D           I           N           S           X
-//  E           J           O           T           Y
+//  a  -				A  -
+//  b  -				B  -
+//  c  -				C  -
+//  d  ( ? dbus ? )			D  -
+//  e  environment			E  -
+//  f  -				F  -
+//  g  -				G  -
+//  h  -				H  -
+//  i  -				I  -
+//  j  -				J  -
+//  k  -				K  -
+//  l  -				L  -
+//  m  -				M  -
+//  n  network				N  -
+//  o  ( overlay with lxroot.conf )	O  -
+//  p  pulseaudio			P  -
+//  q  -				Q  -
+//  r  root (i.e. map uid to 0)		R  -
+//  s  -				S  -
+//  t  -				T  -
+//  u  -				U  -
+//  v  ( ? verbose ? )			V  -
+//  w  full write access		W  -
+//  x  x11				X  -
+//  y  -				Y  -
+//  z  -				Z  -
 //
+//  Unassigned potential future options:
+//    dbus (i.e. pass in dbus access)
+//    don't bind /sys
+//    don't bind /dev
+//    share mount namespace with host
+//    share pid   namespace with host
+//    unshare hostname (i.e. set a custom hostname)
+//    verbose
+
+
 //  long options  ( for plannig purposes only, possibly inaccurate )
-//    dbus  env  help  help-more  network  pid  pulseaudio  root  trace  uid
+//    dbus  env  help  help-more  network  pid  pulseaudio  root  trace
 //    verbose  version  write  x11
 
 
@@ -252,7 +276,7 @@ const char *  help_more  =  //  xxlo  -----------------------------  help_more
 
 //  help.cpp  -  Create and use chroot-style virtual software environments.
 //
-//  Copyright (c) 2021 Parke Bostrom, parke.nexus at gmail.com
+//  Copyright (c) 2022 Parke Bostrom, parke.nexus at gmail.com
 //
 //  This program is free software: you can redistribute it and/or
 //  modify it under the terms of version 3 of the GNU General Public

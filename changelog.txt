@@ -1,3 +1,15 @@
+20220822
+Version bump to 0.22.1.
+lxroot now exports FAKEROOTDONTTRYCHOWN=1.  (This allows fakeroot and apt-get.)
+With -x, added various X display sanity checks and error messages.
+With -x, lxroot will test the X display connection by running 'xset -q'.
+In a terminal with -x, lxroot will prompt to copy in ~/.Xauthority.
+In a terminal with -n, lxroot will prompt to copy in /etc/resolv.conf.
+In aux/unit.sh, added interactive tests of above prompts.
+In str.cpp, wrote new Str class.  (Removed old Str and Frag classes.)
+In str.cpp, rewrote string concatenation.
+In Makefile, removed demo3.  (vland obsoletes demo3.)
+
 20220108
 Version bump to 0.22.0, in order to publish the below 'cd path' improvement.
 

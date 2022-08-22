@@ -1,43 +1,38 @@
 
 
 //  lxroot.cpp  -  Create and use chroot-style virtual software environments.
-//  Copyright (c) 2021 Parke Bostrom, parke.nexus at gmail.com
+//  Copyright (c) 2022 Parke Bostrom, parke.nexus at gmail.com
 //  Distributed under GPLv3 (see end of file) WITHOUT ANY WARRANTY.
 
 
-#define  LXROOT_VERSION  "0.22.0"    //  version  20220108
+#define  LXROOT_VERSION  "0.22.1"    //  version  20220822
 
 
-//  Welcome to the source code for lxroot.
+//  Welcome to the source code for Lxroot.
 //
-//  lxroot's command line interface is documented in help.cpp.
+//  Lxroot's command line interface is documented in help.cpp.
 //
-//  The classes and structs in lxroot can be divided into three categories:
+//  The classes and structs in Lxroot can be divided into three categories:
 //
 //    low level data storage classes
 //    convenience wrappers around system APIs
 //    high level classes
 //
-//  --  Classes and typedefs that are defined in str.cpp
+//  --  String management classes
 //
-//  String type names that begin with 'm' mean mutable.
-//  Most string type names lack the 'm' prefix are immutable.
-//  Lxroot uses the below nicknames (i.e. typedefs) for 'const char *'.
+//  Several types come in mutable vs. immutable pairs.  For example:
 //
-//  typedef  mstr     a const char *
-//  typedef  str      a const mstr
+typedef  const char *  mstr;    //  a  mutable   pointer (to const char)
+typedef  const mstr    str;     //  an immutable pointer (to const char)
 //
-//  The following structs provide method access to a wrapped 'const char *'.
+//  In general, if a type name starts with 'm', then it may be the
+//  mutable half of a mutable vs. immutable type pair.
 //
-//  struct   mFrag     a mutable string fragment (mstr and length).
-//  struct   mStr      a mutable string (mstr, null terminated).
-//  struct   Concat_2  assists with string concatination.
-//  struct   oStr      an appendable string that owns its memory.
-//  struct   Concat    possibly deprecated, assists with string concatination
-//  struct   Argv      a convenience and saftey wrapper around mstr[].
-//
-//  typedef  Frag     a const mFrag.
-//  typedef  Str      a const mStr.
+//  struct   mStr    a mutable string (pointer and length, both mutable).
+//  typedef  Str     an immutable string (pointer and length).
+//  struct   CatN    represents the concatenation of up to 4 strings.
+//  struct   oStr    an dynamicly appendable string that owns its memory.
+//  struct   Argv    a convenience and saftey wrapper around mstr[].
 //
 //  --  Low level data storage classes
 //
@@ -91,13 +86,7 @@
 #include  <functional>       //  std :: function
 
 #include  "help.cpp"         //  Lxroot's help strings
-
-
-//  20211019  At present, these typedefs are also duplicated in str.cpp.
-typedef  const char *  mstr;    //  ---------------------------  typedef  mstr
-typedef  const mstr    str;     //  ----------------------------  typedef  str
-
-
+#include  "str.cpp"          //  Parke's string library
 
 
 template < class C >    //  ---------------------------  template  using  sink
@@ -107,7 +96,8 @@ using  msink  =  std :: function < void ( C & ) >;
 
 
 //  macro  printe  --------------------------------------------  macro  printe
-#define  printe( ... )  fprintf ( stderr, __VA_ARGS__ );
+#define  printe( fmt, ... )  fprintf ( stderr, fmt "\n", ##__VA_ARGS__ );
+#define  writee( fmt, ... )  fprintf ( stderr, fmt     , ##__VA_ARGS__ );
 
 
 //  macro  die_pe  --------------------------------------------  macro  die_pe
@@ -145,7 +135,7 @@ T  assert2  ( T v, str file, const int line )  {
   //  Or could a macro "return" a value via the comma operator?  Not sure.
 
   if  ( (bool) v == false )  {
-    printe ( "lxroot  assert2()  failed  %s  %d\n", file, line );  abort();  }
+    printe ( "lxroot  assert2()  failed  %s  %d", file, line );  abort();  }
   return  v;  }
 
 
@@ -153,32 +143,24 @@ T  assert2  ( T v, str file, const int line )  {
 #define  assert( v )  assert2 ( v, __FILE__, __LINE__ )
 
 
-
-
-//  20211019  At present, str.cpp depends on the above assert macro.
-//            Someday, I may remove the dependency on assert.
-//            Until then, I will include str.cpp here.
-
-#include  "str.cpp"          //  Parke's string library
-
-
-
-
 mstr  bash_command[]  =  {    //  ------------------------------  bash_command
   "/bin/bash",  "--norc",  nullptr  };
 
 
+typedef  const int      cint;     //  xxci  ------------------  typedefg  cint
+typedef  unsigned char  Opt_t;    //  xxop  ------------------  typedef  Opt_t
 
 
+//  20220822  mopt is deprecated, and will eventually be replaced by Opt_t.
 enum  mopt  {    //  xxop  ---------------------------------------  enum  mopt
   o_none,
   /*  literal arg types  */
   o_bind,  o_dashdash,  o_cd,  o_ra,  o_ro,  o_rw,  o_src,  o_wd,
   /*  non-literal option types  */
-  o_command,  o_full,  o_newroot,  o_partial,  o_setenv,  o_shortopt,
+  o_full,  o_newroot,  o_partial,  o_setenv,  o_shortopt,
   /*  literal long options  */
   o_env,    o_help,    o_help_more,    o_network,    o_pulse,
-  o_root,    o_trace,    o_version,    o_write,    o_x11,
+  o_root,    o_trace,    o_uid,  o_version,    o_write,    o_x11,
   };
 
 
@@ -187,24 +169,35 @@ str  opt_name[]  =  {    //  ---------------------------------------  opt_name
   /*  literal arg types  */
   "bind",  "--",        "cd",  "ra",  "ro",  "rw",  "src",  "wd",
   /*  non-literal option types  */
-  "command",  "full",  "newroot",  "partial",  "setenv",  "shortopt",
+  "full",  "newroot",  "partial",  "setenv",  "shortopt",
   /*  literal long options  */
   "--env",  "--help",  "--help-more",  "--network",  "--pulseaudio",
-  "--root",  "--trace",  "--version",  "--write",  "--x11",
+  "--root",  "--trace",  "--uid",  "--version",  "--write",  "--x11",
   nullptr  };
 
 
-typedef  const mopt  opt;
+//  20220822  opt_t is deprecated, and will eventually be replaced by Opt_t.
+typedef  const mopt  opt_t;
 
 
-mopt  operator ||  ( opt a, opt b )  {    //  ---------------------  opt  op ||
+mopt  operator ||  ( opt_t a, opt_t b )  {    //  --------  global  opt  op ||
   return  a  ?  a  :  b  ;  }
 
 
 mopt  global_opt_trace  =  o_none;    //  --------------  ::  global_opt_trace
 
 
-mstr  o2s  ( const opt n )  {    //  --------------------------------  ::  o2s
+template  < class... Args >    //  --------------------------  template  trace
+void  trace  ( str format, Args... args )  {
+  if  ( global_opt_trace == o_trace )  {
+    fprintf ( stderr, format, args... );
+    fputc ( '\n', stderr );   }  }
+
+
+void  trace  ( str s )  {  trace ( "%s", s );  }    //  -------------  trace
+
+
+mstr  o2s  ( const opt_t n )  {    //  ------------------------------  ::  o2s
   if  (  0 <= n  &&  n < ( sizeof opt_name / sizeof(char*) )  )  {
     return  opt_name[n];  }
   return  "INVALID_OPTION";  }
@@ -229,15 +222,15 @@ typedef  unsigned long  flags_t;    //  xxfl  --------------  typedef  flags_t
 
 
 
-
 struct  Option  {    //  xxop  -------------------------------  struct  Option
 
 
-  mopt  type  =  o_none;    //  see the below input/type chart for details.
-  mopt  mode  =  o_none;    //  one of:  o_none  o_ra  o_ro  o_rw
-  mStr  arg0,  arg1;
-  Argv  command;            //  nullptr, then set to command when found
-  Argv  p;                  //  used by subclass Option_Reader
+  Argv  a;                  //  points to the first Str of the current option
+  Argv  p;                  //  a traveller that advances to the next option
+
+  mopt  type  =  o_none;    //  the type of this option
+  mopt  mode  =  o_none;    //  the read-write mode of this option
+  mStr  arg0,  arg1;        //  optional args
 
   mStr  newroot;            //  the newroot
   mStr  overlay;            //  the current overlay
@@ -250,7 +243,7 @@ struct  Option  {    //  xxop  -------------------------------  struct  Option
 
 
   void  print  ( Str m )  const  {    //  ---------------------  Option  print
-    printe ( "%-8s  %-7s  %s\n", m.s, o2s(type), arg0.s );  }
+    printe ( "%-8s  %-7s  %s", m.s, o2s(type), arg0.s );  }
 
 
 protected:
@@ -284,7 +277,7 @@ struct  Bind  {    //  xxbi  -----------------------------------  struct  Bind
 
 
   void  print  ( Str s )  const  {    //  -----------------------  Bind  print
-    printe ( "%s  bind  %-7s  %-2s  %-2s  '%s'  '%s'  '%s'\n",
+    printe ( "%s  bind  %-7s  %-2s  %-2s  '%s'  '%s'  '%s'",
 	     s.s,  o2s(type),  o2s(mode),  o2s(actual), dst.s, src.s,
 	     newroot_dst.s );  }
 
@@ -292,7 +285,7 @@ struct  Bind  {    //  xxbi  -----------------------------------  struct  Bind
   Bind &  set    //  ----------------------------------------------  Bind  set
   ( const Option & o, Str childname = 0 )  {
 
-    //  20210620  note:  a Bind my outlive the Option o.
+    //  20210620  note:  a Bind may outlive the Option o.
 
     Str  ov  =  o.overlay;
     Str  a0  =  o.arg0;
@@ -306,20 +299,21 @@ struct  Bind  {    //  xxbi  -----------------------------------  struct  Bind
 
     switch  ( o.type )  {
       case  o_newroot:  dst="";  src=a0;  mode=mode||o_ra;    break;
-      case  o_bind:     dst=a0;  src=s(a1);                   break;
+      case  o_bind:     dst=a0;  src=a1;                      break;
 
 	//  20210620  todo  consider setting dst and src to ""
         //  20210620        nope, it appears setting dst and src is required
 	//  20210620        I wonder why?
-      case  o_full:     dst=cn;  src=s(a0,"/",cn);  full=a0;  break;
+      case  o_full:     dst=cn;  src=a0+"/"+cn;  full=a0;     break;
       //se  o_full:     dst="";  src="";  full=a0;            break;
 
 	//  20210620  todo  set mode (and write unit tests)
-      case  o_partial:  dst=a0;  src=s(ov,"/",a0);            break;
+      case  o_partial:  dst=a0;  src=ov+"/"+a0;               break;
 
       default:          dst="error";  src="error";            break;  }
 
-    newroot_dst  =  dst  ?  s(o.newroot,"/",dst)  :  s(o.newroot)  ;
+    if  ( dst )  {  newroot_dst  =  o.newroot + "/" + dst;  }
+    else         {  newroot_dst  =  o.newroot;  }
 
     //  20210619
     //  if  ( dst[0] == '/' )  {    //  20210619
@@ -347,19 +341,21 @@ class  Env  {    //  xxen  ---------------------------------------  class  Env
 public:
 
 
-  str *  data  ()  const  {    //  --------------------------------  Env  data
-    return  vec .data();  }
+  str *  data  ()  const  {  return  vec .data();  }    //  -------  Env  data
+  bool  not_set  ( Str name )  const  {  return  get(name) == nullptr;  }
 
 
-  Str  get  ( Frag name )  const  {    //  -------------------------  Env  get
+  Str  get  ( Str name )  const  {    //  --------------------------  Env  get
     for  (  auto & o  :  vec  )  {
       if  ( Str(o) .env_name() == name )  {
 	return  Str(o) .tail ( "=" );  }  }
     return  nullptr;  }
 
 
+
+
   void  set  ( Str pair )  {    //  --------------------------------  Env  set
-    Frag  name  =  pair .env_name();
+    Str  name  =  pair .env_name();
     if  ( name.n == 0 )  {  return;  }
     for  (  auto & o  :  vec  )  {
       if  ( Str(o) .env_name() == name  )  {  o  =  pair.s;  return;  }  }
@@ -368,20 +364,21 @@ public:
     vec .push_back ( nullptr );  }
 
 
-  void  set  ( Frag name, Frag value )  {    //  -------------------  Env  set
-    set ( leak ( name + "=" + value ) );  }
+  void  set  ( Str name, Str value )  {    //  ---------------------  Env  set
+    set ( oStr ( name + "=" + value ) .leak() );  }
 
 
   void  soft  ( Str pair )  {    //  ------------------------------  Env  soft
-    if  ( not get ( pair .env_name() ) )  {  set ( pair );  }  }
+    if  ( not_set ( pair .env_name() ) )  {  set ( pair );  }  }
 
 
-  void  soft  ( Frag name, Frag value )  {    //  -----------------  Env  soft
-    if  ( not get ( name ) )  {  set ( leak ( name + "=" + value ) );  }  }
+  void  soft  ( Str name, Str value )  {    //  -------------------  Env  soft
+    if  ( not_set ( name ) )  {
+      set ( oStr ( name + "=" + value ) .leak() );  }  }
 
 
   void  soft_copy  ( Str name )  {    //  --------------------  Env  soft_copy
-    Str  pair  =  Argv ( environ ) .env_get ( name );
+    Str  pair  =  Argv(environ) .env_get ( name );
     if  ( pair )  {  soft ( pair );  }  }
 
 
@@ -428,26 +425,28 @@ struct  State  {    //  xxst  ---------------------------------  struct  State
   const gid_t  gid           =  getgid();    //  gid prior to unshare()
   Fgetpwent    outside       ;    //  from /etc/passwd outside the lxroot
   Fgetpwent    inside        ;    //  from /etc/passwd inside  the lxroot
-  mopt         opt_env       =  o_none;    //  pass in environment
-  mopt         opt_network   =  o_none;
-  mopt         opt_pulse     =  o_none;
-  mopt         opt_root      =  o_none;
-  mopt         opt_write     =  o_none;
-  mopt         opt_x11       =  o_none;
   mopt         newroot_mode  =  o_none;
+  Opt_t        opts[128]     =  { 0 };    //  command line options
   bool         before_pivot  =  true;
   mStr         newroot;
   mStr         guestname;
-  mStr         chdir;       //  from the first and only cd option
-  mStr         workdir;     //  from the last wd option
-  Argv         command;
+  mStr         chdir;         //  from the first and only cd option
+  mStr         workdir;       //  from the last wd option
+  mStr         xauthority;    //  contents of $HOME/.Xauthority
+  Argv         dash;          //  points to '--' in argv ("dash dash")
+  Argv         command;       //  points to the command to exec()
+
+
+Opt_t    opt_get  ( Opt_t k )  const    {  return  opts[k];  }    //  ---- opt
+Opt_t &  opt      ( Opt_t k )  {  return  opts[k];  }    //  --
 
 
 };    //  end  struct  State  ----------------------------  end  struct  State
 
 
-State  mut;    //  ---------------------------------------  global  State  mut
-const State & st  =  mut;    //  ------------------  global  const State &  st
+State  mut;    //  -----------------------------  mutable  global  State   mut
+const State & st  =  mut;    //  -----------------  const  global  State &  st
+Opt_t  opt  ( Opt_t k )  {  return  st .opt_get (k);  }    //  --  global  opt
 
 
 
@@ -486,7 +485,7 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
 
   static void  assert_is_dir  ( str path, str m )  {    //  ---  assert_is_dir
     if  ( is_dir ( path ) )  {  return;  }
-    printe ( "lxroot  %s  directory not found  '%s'\n", m, path  );
+    printe ( "lxroot  %s  directory not found  '%s'", m, path  );
     exit ( 1 );  }
 
 
@@ -510,11 +509,11 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
 
 
   static void  help_print  ( int n = 0 )  {    //  --------  Lib :: help_print
-    printe ( "%s%s", help, help2 );  exit ( n );  }
+    writee ( "%s%s", help, help2 );  exit ( n );  }
 
 
   static void  help_more_print  ()  {    //  ---------  Lib :: help_more_print
-    printe ( "%s%s", help, help_more );  exit ( 0 );  }
+    writee ( "%s%s", help, help_more );  exit ( 0 );  }
 
 
   static Str  home  ()  {    //  ----------------------------------  Lib  home
@@ -523,7 +522,7 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
 
   static bool  is_dir  ( Str path )  {    //  -------------------  Lib  is_dir
     struct stat  st;
-    if  (  path.s  &&  path.n()  &&
+    if  (  path.n  &&
 	   stat ( path.s, & st ) == 0  &&  st .st_mode & S_IFDIR  )  {
       return  1;  }
     errno  =  ENOENT;
@@ -540,9 +539,14 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
     closedir ( dirp );  return  true;  }
 
 
+  static bool  is_exists ( Str path )  {    //  --------------  Lib  is_exists
+    struct stat  st;
+    return  path.n  &&  :: lstat ( path.s, & st ) == 0  ;  }
+
+
   static bool  is_file  ( Str path )  {    //  -----------------  Lib  is_file
     struct stat  st;
-    if  (  path  &&  :: stat ( path.s, & st ) == 0
+    if  (  path.n  &&  :: stat ( path.s, & st ) == 0
 	   &&  st .st_mode & S_IFREG  )  {
       return  true;  }
     errno  =  ENOENT;    //  20210521  so perror() is useful?
@@ -558,6 +562,26 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
     return  false;  }
 
 
+  enum  prompt_rv  {  prompt_notty=1,  prompt_timeout=2  };    //  -----------
+
+
+  static int  prompt  ( Str message, int timeout )  {    //  ----  Lib  prompt
+    //  prompt() returns:  prompt_notty  or  prompt_timeout
+    //    or  -1 on invalid input  or  the character c on input of "c\n"
+    if  (  not isatty(0)  ||  not isatty(1)  )  {  return  prompt_notty;  }
+    const int      stdout  =  1;
+    const ssize_t  expect  =  strlen ( message.s );
+    const ssize_t  actual  =  write ( stdout, message.s, expect );
+    if  ( actual not_eq expect )  {  die1 ( "prompt failed" );  }
+    fd_set          rfds;  FD_ZERO(&rfds);  FD_SET(0,&rfds);
+    struct timeval  tv  =  { timeout, 0 };
+    int  rv             =  select ( 1, & rfds, 0, 0, & tv );
+    if  ( rv == 0 )  {  return   prompt_timeout;  }
+    if  ( rv != 1 )  {  return  -1;  }    //  select() error?
+    unsigned char  buf[3];  rv  =  read ( 0, buf, 3 );
+    return  ( rv == 2 && buf[1] == '\n' )  ?  buf[0]  :  -1  ;  }
+
+
   static Str  readlink  ( Str path )  {    //  ---------------  Lib  readlink
     struct stat  st;
     if  (  lstat ( path.s, & st ) == 0  &&  st .st_mode & S_IFLNK  )  {
@@ -567,7 +591,7 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
 	memset ( buf, '\0', lim );
 	ssize_t  len  =  :: readlink ( path.s, buf, lim );
 	if  ( len == lim - 2 )  {  return  buf;  } }
-      printe ( "lxroot  readlink  failed  %s\n", path.s );
+      printe ( "lxroot  readlink  failed  %s", path.s );
       exit ( 1 );  }
     return  nullptr;  }
 
@@ -577,25 +601,43 @@ struct  Lib  {    //  xxli  -------------------------------------  struct  Lib
 
 
 
-//  macro  trace1  --------------------------------------------  macro  trace1
-#define  trace1( format, ... )  {				\
-  if  ( global_opt_trace == o_trace )  {			\
-    fprintf ( stderr, format "\n",				\
-              ##__VA_ARGS__ );  }  }
+//  try  ----------------------------------------------------------------  try
 
 
-//  macro  try_quiet  --------------------------------------  macro  try_quiet
-#define  try_quiet( function, format, ... )  {			\
-  if  ( (function) ( __VA_ARGS__ ) == 0 )  {  return;  }	\
-  else  {  die_pe ( format, ##__VA_ARGS__ );  }  }
+struct  Try2_Format_String  {  void(*fp)();  str format;  };    //  --  struct
 
 
-//  macro  try1  ------------------------------------------------  macro  try1
-#define  try1( function, format, ... )  {	       		\
-  trace1 ( format, ##__VA_ARGS__ );				\
-  try_quiet ( function, format, ##__VA_ARGS__ );  }
+Try2_Format_String  try2_lookup_table[]  =  {    //  ------  try2_lookup_table
+#define  m(fn)  ( (void(*)()) fn )
+  {  m(chdir),    "  chdir    %s"        },
+  {  m(chroot),   "  chroot   %s"        },
+  {  m(close),    "  close    %d"        },
+  {  m(umount2),  "  umount2  %s  0x%x"  },
+  {  m(unshare),  "  unshare  0x%08x"    },
+#undef  m
+  { nullptr, nullptr  }  };
 
 
+mstr  try2_format  ( void(*fp)() )  {    //  ---------------------  try2_format
+  for  (  const auto & en  :  try2_lookup_table  )  {
+    if  ( en.fp == fp )  {  return  en.format;  }  }
+  return  "try2_format  unexpected function";  }
+
+
+template  < typename F >    //  -----------------------  template  try2_format
+mstr  try2_format  ( F fp )  {  return  try2_format ( (void(*)()) fp );  }
+
+
+template  < typename F, class... Args >    //  ---------------  template  try1
+int  try1  ( str s, F fn, Args... args )  {
+  int  rv  =  fn ( args... );
+  if  ( rv == -1 )  {  die1 ( "try1  %s", s );  }
+  return  rv;  }
+
+
+template  < typename F, class... Args >    //  ---------------  template  try2
+int  try2  ( str s, F fn, Args... args )  {
+  trace ( try2_format(fn), args... );  return  try1 ( s, fn, args... );  }
 
 
 struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
@@ -605,6 +647,14 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
 
   pid_t  fork_pid   =  -2;
   pid_t  wstatus    =  0;
+
+
+  static void  chdir    (Str path ){ try2( "chdir",   ::chdir,   path.s );}
+  static void  chroot   (Str path ){ try2( "chroot",  ::chroot,  path.s );}
+  static void  close    (int fd   ){ try1( "close",   ::close,   fd     );}
+  static void  unshare  (int flags){ try2( "unshare", ::unshare, flags  );}
+  static void  umount2  ( Str target, int flags )  {
+    try2 ( "umount2", :: umount2, target.s, flags );  }
 
 
   void  bind  ( Str target, Str source )  {    //  ------------  Syscall  bind
@@ -628,30 +678,18 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
     //
     Lib :: directory_require ( source, "source" );
     Lib :: directory_require ( target, "target" );
-    trace1 ( "  bind     '%s'  '%s'", target.s, source.s );
+    trace ( "  bind     '%s'  '%s'", target.s, source.s );
     const flags_t  flags  =  MS_BIND | MS_REC;
     const int      rv     =  :: mount ( source.s, target.s, 0, flags, 0 );
     if  ( rv == 0 )  {  return;  }
     die_pe ( "bind  %s  %s\n", source.s, target.s );  }
 
 
-  void  chdir  ( Str path )  {    //  ------------------------  Syscall  chdir
-    try1( :: chdir, "  chdir    %s", path.s );  }
-
-
-  void  chroot  ( Str new_root )  {    //  ------------------  Syscall  chroot
-    try1( :: chroot, "  chroot   %s", new_root.s );  }
-
-
-  void  close  ( int fd )  {    //  --------------------------  Syscall  close
-    try_quiet ( :: close, "  close  %d", fd );  }
-
-
   void  execve  ( const Str   pathname,    //  --------------  Syscall  execve
 		  const Argv  argv,
 		  const Argv  envp )  {
 
-    trace1 ( "  execve   %s  %s", pathname.s, argv .concat().s );
+    trace ( "  execve   %s  %s", pathname.s, argv .concat().s );
     if  ( pathname .chr ( '/' ) )  {    //  path is specified, so use execve()
       :: execve ( pathname.s, (char**) argv.p, (char**) envp.p );  }
     else  {    //  only filename is specified, so use execvpe()
@@ -663,33 +701,71 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
     die_pe ( "execve  %s", pathname.s );  }
 
 
-  void  exit  ( int status )  {    //  ------------------------  Syscall  exit
-    trace1 ( "  exit     %d", status );  :: exit ( status );  }
+  static void  exit  ( int status )  {    //  -----------------  Syscall  exit
+    trace ( "  exit     %d", status );  :: exit ( status );  }
+
+
+  static void  file_copy  ( Str src, Str dst, const mode_t mode )  {    //  --
+
+    int  src_fd  =  open ( src, O_RDONLY );
+    int  dst_fd  =  open ( dst, O_WRONLY | O_CREAT, mode );
+    char  buf[1024];
+    while  ( true )  {
+      int  a  =  try1 ( "read", :: read, src_fd, buf, sizeof(buf) );
+      if  ( a == 0 )  {  break;  }
+      int  b  =  try1 ( "write", :: write, dst_fd, buf, a );
+      assert ( a == b );  }
+  try1 ( "close", :: close, src_fd );
+  try1 ( "close", :: close, dst_fd );  }
+
+
+  static Str  file_read  ( Str path )  {    //  ----------  Syscall  file_read
+    const auto  st  =  Syscall :: stat ( path );
+    const int   fd  =  Syscall :: open ( path, O_RDONLY );
+    Str         rv  =  Syscall :: read ( fd, nullptr, st.st_size );
+    ;                  Syscall :: close ( fd );
+    return  rv;  }
+
+
+  static void  file_write  ( Str path, Str s, const mode_t mode )  {   //  ---
+    const int  fd      =  Syscall :: open ( path, O_WRONLY | O_CREAT, mode );
+    const int  actual  =  :: write ( fd, s.s, s.n );
+    if  ( actual not_eq s.n )  {  die1 ( "file_write  %s", path.s );  }
+    ;                     Syscall :: close(fd);  }
 
 
   void  fork  ()  {    //  ------------------------------------  Syscall  fork
     if  ( fork_pid != -2 )  {  die_pe ( "extra fork?" );  }
     if  ( ( fork_pid = :: fork() ) >= 0 )  {
-      trace1 ( "  fork     (fork returned %d)", fork_pid );
+      trace ( "  fork     (fork returned %d)", fork_pid );
       return;  }
     die_pe ( "fork" );  }
 
 
   void  mount  ( Str source, Str target, Str filesystemtype )  {    //   mount
     Lib :: directory_require ( target, "target" );
-    trace1 ( "  mount    %s  %s  %s", source.s, target.s, filesystemtype.s );
+    trace ( "  mount    %s  %s  %s", source.s, target.s, filesystemtype.s );
     if  ( :: mount ( source.s, target.s, filesystemtype.s, 0, 0 ) == 0 )  {
       return;  }
-    die_pe ( "mount  %s  %s  %s",  source.s, target.s, filesystemtype.s );  }
+    die_pe ( "mount  %s  %s  %s\n",  source.s, target.s, filesystemtype.s );  }
 
 
-  void  open  ( int * fd, Str pathname, const int flags )  {    //  ----  open
-    if  ( ( * fd = :: open ( pathname.s, flags ) ) >= 0 )  {  return;  }
-    die_pe ( "open  %s  %d", pathname.s, flags );  }
+  static int  open  ( Str path, const int flags, const mode_t mode )  {  //  --
+    const int  fd  =  :: open ( path.s, flags, mode );
+    if  ( fd == -1 )  {  die1 ( "open  %s  %s", path.s, strerror(errno) );  }
+    return  fd;  }
+
+
+  static int  open  ( Str pathname, const int flags )  {    //  --------  open
+    return  open ( pathname, flags, 0 );  }
+
+
+  static void  open  ( int * fd, Str pathname, const int flags )  {    //  ---
+    * fd  =  open ( pathname, flags );  }
 
 
   void  pivot  ( Str new_root, Str put_old )  {   //  --------  Syscall  pivot
-    trace1 ( "  pivot    '%s'  '%s'", new_root.s, put_old.s );
+    trace ( "  pivot    '%s'  '%s'", new_root.s, put_old.s );
     if  ( syscall ( SYS_pivot_root, new_root.s, put_old.s ) == 0 )  {
       mut .before_pivot  =  false;  return;  }
     die_pe ( "pivot  %s  %s", new_root.s, put_old.s );  }
@@ -702,8 +778,17 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
     const flags_t  flags  =  (  st_to_ms ( st .f_flags )
 				| MS_BIND | MS_REMOUNT | MS_RDONLY  );
     if  ( :: mount ( NULL, target.s, NULL, flags, NULL ) == 0 )  {
-      trace1 ( "  rdonly  %lx  '%s'", flags, target.s );  return;  }
+      trace ( "  rdonly   %lx  '%s'", flags, target.s );  return;  }
     die_pe ( "rdonly  %lx  '%s'\n", flags,  target.s );  }
+
+
+  static Str  read  ( cint fd, void * buf, cint count )  {    //  ------  read
+    if  ( buf == nullptr )  {  buf  =  malloc(count);  }
+    if  ( buf == nullptr )  {  die1 ( "read failed  buf == nullptr" );  }
+    const int  actual  =  :: read ( fd, buf, count );
+    if  ( actual not_eq count )  {
+      die1 ( "read failed  actual not_eq count" );  }
+    return  Str ( (char*) buf, actual );  }
 
 
   static flags_t  st_to_ms  ( flags_t n )  {    //  -------  Syscall  st_to_ms
@@ -762,19 +847,17 @@ struct  Syscall  {    //  xxsy  -----------------------------  struct  Syscall
     return  ( n & copy_these_bits ) | shifted_bits;  }
 
 
-  void  umount2  ( Str target, int flags )  {   //  --------  Syscall  umount2
-    try1( :: umount2, "  umount2  %s  0x%x", target.s, flags );  }
-
-
-  void  unshare  ( const int flags )  {    //  -------------  Syscall  unshare
-    try1( :: unshare, "  unshare  0x%08x", flags );  }
+  static struct stat  stat  ( Str path )  {    //  ------------  Syscall  stat
+    struct stat  st;
+    if  ( :: stat ( path.s, & st ) == -1 )  {  die1 ( "stat  %s", path.s );  }
+    return  st;  }
 
 
   pid_t  wait  ()  {    //  -----------------------------------  Syscall  wait
-    trace1 ( "  wait     (parent calls wait)" );
+    trace ( "  wait     (parent calls wait)" );
     pid_t  pid  =  :: wait ( & wstatus );
     if  ( pid > 0 )  {
-      trace1 ( "  wait     wait returned  pid %d  status 0x%x",
+      trace ( "  wait     wait returned  pid %d  status 0x%x",
 	      pid, wstatus );
       return  pid;  }
     die_pe ( "wait" );  return  -1;  }
@@ -798,18 +881,17 @@ struct  Option_Reader    //  xxop  --------------------  struct  Option_Reader
   :  private  Option  {
 
 
-  const Option &  o;    //  const access to the Option base class
+  const Option &  ref;    //  const access to the Option base class
 
 
-  Option_Reader  ( Argv p )  :  Option(p),  o(*this)  {}    //  --------  ctor
+  Option_Reader  ( Argv p )  :  Option(p),  ref(*this)  {}    //  ------  ctor
 
 
-  Option_Reader  ( const Option * o )  :  o(*this)  {    //  -----------  ctor
-    * (Option*) this  =  * o;  }
+  Option_Reader  ( const Option * other )  :  ref(*this)  {    //  -----  ctor
+    * (Option*) this  =  * other;  }
 
 
-  const Option &  next  ()  {    //  --------------------  Option_Reader  next
-    next_impl();  return  o;  }
+  const Option &  next  ()  {  next_impl();  return  ref;  }    //  ----  next
 
 
 private:
@@ -817,60 +899,57 @@ private:
 
   void  next_impl  ()  {    //  --------------------  Option_Reader  next_impl
 
-    //    input                  type          mode    arg0            arg1
+    //    input                  type          mode    arg0     arg1
     //
-    //    --<longopt>            o_<longopt>    -       --<longopt>    -
-    //    -short                 o_shortopt     -       -short         -
-    //    name=value             o_setenv       -       name=value     -
-    //    [mode] path            o_newroot      mode    path           -
-    //    [mode] path            o_full         mode    path           -
-    //    [mode] path            o_partial      mode    path           -
-    //    src [mode] path        o_src          mode    path           -
-    //    bind [mode] dst src    o_bind         mode    dst            src
-    //    cd path                o_cd           -       path           -
-    //    wd path                o_wd           -       path           -
-    //    --                     o_dashdash     -       "--"           -
-    //    command [arg ...]      o_command      -       command        -
+    //    --<longopt>            o_<longopt>    -       -       -
+    //    -short                 o_shortopt     -       -       -
+    //    name=value             o_setenv       -       -       -
+    //    [mode] path            o_newroot      mode    path    -
+    //    [mode] path            o_full         mode    path    -
+    //    [mode] path            o_partial      mode    path    -
+    //    src [mode] path        o_src          mode    path    -
+    //    bind [mode] dst src    o_bind         mode    dst     src
+    //    cd path                o_cd           -       path    -
+    //    wd path                o_wd           -       path    -
+    //    -- cmd [arg ...]       o_dashdash     -       -       -
 
+
+    a     =  p;    //  advance
+    type  =  s2o ( a[0] );
     mode  =  o_none;
-    arg0  =  p[0];
 
-    //  note  arg0 is the *current* arg, but ...
-    //          type is the type of the *previous*(!) arg.
-    if  ( type == o_dashdash )  {  do_command();     return;  }
-    if  ( type == o_command  )  {  type  =  o_none;  return;  }
-    if  ( arg0 == nullptr    )  {  do_command();     return;  }
+    if  (  p.p == nullptr  ||  p[0] == nullptr  )  {  return;  }
 
-    type  =  s2o ( arg0 );    //  type is now the type of the *current* arg.
     switch  ( type )  {
-      case  o_ra:      //  fallthrough to o_rw
-      case  o_ro:      //  fallthrough to o_rw
-      case  o_rw:      mode_path();  return;
-      case  o_src:     p++;  opt_mode();  arg0=overlay=*p++;  return;
-      case  o_bind:    p++;  opt_mode();  arg0=*p++;  arg1=*p++;  return;
-      case  o_cd:      //  fallthrough to o_wd
-      case  o_wd:      p++;  arg0=*p++;  return;
-      default:         break;  }
 
-    if  ( arg0.startswith("--") )  {
+      case  o_ra:          //  fallthrough to o_rw
+      case  o_ro:          //  fallthrough to o_rw
+      case  o_rw:          mode_path();  return;
+
+      case  o_src:         p++;  opt_mode();  overlay=*p++;  return;
+      case  o_bind:        p++;  opt_mode();  arg0=*p++;  arg1=*p++;  return;
+
+      case  o_cd:          //  fallthrough to o_wd
+      case  o_wd:          p++;  arg0=*p++;  return;
+
+      case  o_dashdash:    p=(char**)nullptr;  return;
+
+      default:             break;  }
+
+    if  ( a[0].starts_with("--") )  {
       if  ( type )  {  p++;  return;  }
-      else          {  die1 ( "bad option  %s", arg0.s );  }  }
-    if  ( arg0.startswith("-") )  {  type=o_shortopt;  p++;  return;  }
-    if  ( is_setenv()          )  {  type=o_setenv;    p++;  return;  }
+      else          {  die1 ( "bad option  %s", a[0].s );  }  }
+    if  ( a[0].starts_with("-") )  {  type=o_shortopt;  p++;  return;  }
+    if  ( is_setenv()           )  {  type=o_setenv;    p++;  return;  }
 
     path();  }
-
-
-  void  do_command  ()  {    //  ------------------  Option_Reader  do_command
-    assert ( command == nullptr );
-    type  =  o_command;  command  |=  p;  };
 
 
   bool  is_setenv  ()  {    //  --------------------  Option_Reader  is_setenv
     str  var_name_allowed  =
       "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
-    const int  n  =  arg0.spn ( var_name_allowed );
-    return  n > 0  &&  n < arg0.n()  &&  arg0[n] == '=';  }
+    cint  n  =  a[0].spn ( var_name_allowed );
+    return  n > 0  &&  n < a[0].n  &&  a[0].s[n] == '=';  }
 
 
   void  mode_path  ()  {    //  --------------------  Option_Reader  mode_path
@@ -880,7 +959,7 @@ private:
 
   void  opt_mode  ()  {    //  ----------------------  Option_Reader  opt_mode
     //  [mode]
-    opt  n  =  s2o(p[0]);  switch  ( n )  {
+    opt_t  n  =  s2o(p[0]);  switch  ( n )  {
       case  o_ra:  case  o_ro:  case  o_rw:  mode=n;  p++;  break;
       default:  break;  }  }
 
@@ -888,7 +967,7 @@ private:
   void  path  ()  {    //  ------------------------------  Option_Reader  path
     //  path
     arg0  =  * p ++ ;
-    if  ( newroot )  {  type  =  overlay  ?  o_partial  :  o_full  ;  }
+    if  ( newroot )  {  type  =  overlay.n  ?  o_partial  :  o_full  ;  }
     else             {  type=o_newroot;  newroot=arg0;  }  }
 
 
@@ -900,12 +979,12 @@ private:
 struct  Logic  :  Lib  {    //  xxlo  -------------------------  struct  Logic
 
 
-  static mopt  actual  ( Str path, opt mode )  {    //  -------  Logic  actual
+  static mopt  actual  ( Str path, opt_t mode )  {    //  -----  Logic  actual
     return  (  mode == o_rw
 	       ||  is_inside_workdir ( path )
 	       ||  (  mode == o_ra
-		      &&  (  st.opt_root
-			     ||  st.opt_write
+		      &&  (  opt('r')
+			     ||  opt('w')
 			     ||  is_inside_readauto ( path )  )  )
 	       ?  o_rw  :  o_ro  );  }
 
@@ -920,7 +999,7 @@ struct  Logic  :  Lib  {    //  xxlo  -------------------------  struct  Logic
     auto  single  =  [&]  ()  {
       if  ( is_overbound ( b ) )  { return;  }
       if  ( b.mode == o_none )  {
-	mFrag  parent;  calculate_parent ( b.dst, parent, b.mode );  }
+	mStr  parent;  calculate_parent ( b.dst, parent, b.mode );  }
       b.actual  =  actual ( b.dst, b.mode );
       fn ( b );  };
 
@@ -940,7 +1019,7 @@ struct  Logic  :  Lib  {    //  xxlo  -------------------------  struct  Logic
 
 
   static void  calculate_parent    //  --------------  Logic  calculate_parent
-  ( Str child, mFrag & parent, mopt & mode )  {
+  ( Str child, mStr & parent, mopt & mode )  {
 
     //  Find/calculate the path and specified mode of the Bind that
     //  contains path child.  Since each Bind may inherit from its parent,
@@ -951,7 +1030,7 @@ struct  Logic  :  Lib  {    //  xxlo  -------------------------  struct  Logic
 
     auto  is_descendant  =  [&]  ( const Bind & raw )  {
       return  child .is_inside ( raw .dst )
-	&&  (  parent == nullptr ||  raw.dst.n() > parent.n  );  };
+	&&  (  parent == nullptr ||  raw.dst.n > parent.n  );  };
 
     auto  descend_to  =  [&]  ( const Bind & raw )  {
       parent  =  raw .dst;    //  .dst is eternal becaus .type != o_full
@@ -986,7 +1065,7 @@ struct  Logic  :  Lib  {    //  xxlo  -------------------------  struct  Logic
   static void  options  ( sink<Option> fn )  {   //  ---------  Logic  options
     //  parse the command line options and pass each option to fn().
     Option_Reader  r  ( st .argv + 1 );
-    while  ( r.next() )  {  fn ( r.o );  }  }
+    while  ( r.next() )  {  fn ( r.ref );  }  }
 
 
   static void  scandir  ( Str path, sink<Dirent> fn )  {    //  Logic  scandir
@@ -1022,7 +1101,7 @@ private:
     //  return true iff some later Option overbinds b.dst.
     Option_Reader  r  ( b .option );    //  start after b's option
     while  ( r.next() )  {
-      if  ( is_overbound_by ( b, r.o ) )  {  return  true;  }  }
+      if  ( is_overbound_by ( b, r.ref ) )  {  return  true;  }  }
     return  false;  }
 
 
@@ -1033,7 +1112,7 @@ private:
 
     auto  do_full  =  [&]  ()  {
       if  ( b.type == o_newroot )  {  return  false;  }
-      oStr  full_trunk  =  s( o.arg0, "/", b.dst .trunk() );
+      oStr  full_trunk  =  o.arg0 + "/" + b.dst .trunk();
       return  Lib :: is_dir ( full_trunk );  };
 
     switch  ( o.type )  {
@@ -1054,36 +1133,38 @@ Logic  q;    //  -------------------------------------------  global  Logic  q
 struct  Init_Tool  {    //  xxin  -------------------------  struct  Init_Tool
 
 
-  static void  process  ( const Option & a )  {    //  ---  Init_Tool  process
+  static void  process  ( const Option & v )  {    //  ---  Init_Tool  process
 
-    switch ( a.type )  {
+    switch ( v.type )  {
 
-      case  o_cd:         cd(a);                            break;
-      case  o_command:    command(a);                       break;
-      case  o_env:        mut .opt_env       =  o_env;      break;
-      case  o_full:       guestname(a);                     break;
-      case  o_help:       Lib :: help_print();              break;
-      case  o_help_more:  Lib :: help_more_print();         break;
-      case  o_network:    mut .opt_network   =  o_network;  break;
-      case  o_newroot:    mut .newroot_mode  =  a.mode;
-	;;;               mut .newroot       =  a.arg0;     break;
-      case  o_pulse:      mut .opt_pulse     =  o_pulse;    break;
-      case  o_root:       mut .opt_root      =  o_root;     break;
-      case  o_src:        guestname(a);                     break;
-      case  o_trace:      global_opt_trace   =  o_trace;    break;
-      case  o_version:    version();                        break;
-      case  o_wd:         mut .workdir       =  a.arg0;     break;
-      case  o_write:      mut .opt_write     =  o_write;    break;
-      case  o_x11:        mut .opt_x11       =  o_x11;      break;
-      case  o_shortopt:   shortopt(a);                      break;
+      //  long options
+      case  o_env:        mut .opt('e')      =  true;    break;
+      case  o_network:    mut .opt('n')      =  true;    break;
+      case  o_pulse:      mut .opt('p')      =  true;    break;
+      case  o_root:       mut .opt('r')      =  true;    break;
+      case  o_write:      mut .opt('w')      =  true;    break;
+      case  o_x11:        mut .opt('x')      =  true;    break;
+      case  o_trace:      global_opt_trace   =  o_trace;     break;
+
+      //  other options
+      case  o_cd:         cd(v);                             break;
+      case  o_dashdash:   mut .dash          =  v.a;         break;
+      case  o_full:       guestname(v);                      break;
+      case  o_help:       Lib :: help_print();               break;
+      case  o_help_more:  Lib :: help_more_print();          break;
+      case  o_newroot:    mut .newroot_mode  =  v.mode;
+	;;;               mut .newroot       =  v.arg0;      break;
+      case  o_src:        guestname(v);                      break;
+      case  o_version:    version();                         break;
+      case  o_wd:         mut .workdir       =  v.arg0;      break;
+      case  o_shortopt:   shortopt(v);                       break;
 
       case  o_bind:       break;
-      case  o_dashdash:   break;
       case  o_partial:    break;
       case  o_setenv:     break;
 
       default:  die1 ( "init_tool  bad option  %d  %s",
-		       a.type,  o2s(a.type) )  break;  }  }
+		       v.type,  o2s(v.type) )  break;  }  }
 
 
 private:
@@ -1094,28 +1175,22 @@ private:
     mut .chdir  =  a.arg0;  }
 
 
-  static void  command  ( const Option & a )  {    //  ---  Init_Tool  command
-    mut .command  =  a.command;  }
-
-
   static void  guestname  ( const Option & o )  {    //  ----------  guestname
     if  ( o.arg0 == "/" )  {  return;  }
     mut .guestname  =  o.arg0;  }
 
 
   static void  shortopt  ( const Option & a )  {    //  -  Init_Tool  shortopt
-    for  (  mStr p = a.arg0.s+1  ;  *p  ;  p++  )  {
-      switch  ( *p )  {
-	case 'e':  mut .opt_env      =  o_env;      break;
-	case 'n':  mut .opt_network  =  o_network;  break;
-	case 'r':  mut .opt_root     =  o_root;     break;
-	case 'w':  mut .opt_write    =  o_write;    break;
-	case 'x':  mut .opt_x11      =  o_x11;      break;
-	default:  die1 ( "bad short option  '%c'", *p );  break;  }  }  }
+    for  (  mstr p = a.a[0].s+1  ;  *p  ;  p++  )  {
+      //        ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_'abcdefghijklmnopqrstuvwxyz
+      if  ( ( 0b0000000000000000000000000000000000001000000001010100001100
+	      >>  ( 'z' - *p ) )  &  0x01 )  {
+	mut .opt(*p)  =  true;  continue;  }
+      die1 ( "bad short option  '%c'", *p );  break;  }  }
 
 
   static  void  version  ()  {    //  --------------------  Init_Tool  version
-    printe ( "lxroot  version  " LXROOT_VERSION "\n" );
+    printe ( "lxroot  version  " LXROOT_VERSION );
     exit ( 0 );  }
 
 
@@ -1128,7 +1203,7 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
 
 
   static void  option  ( const Option & o )  {    //  ------  Env_Tool  option
-    if  ( o.type == o_setenv )  { mut .env .set ( o.arg0 );  }  }
+    if  ( o.type == o_setenv )  { mut .env .set ( o.a[0] );  }  }
 
 
   static void  essential  ()  {    //  ------------------  Env_Tool  essential
@@ -1141,39 +1216,26 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
     const Fgetpwent &  out  =  st .outside;
 
     auto  get  =  []  ( Str name )  {
-      return  st .opt_root  ?  nullptr  :  Lib :: getenv ( name );  };
+      return  opt('r')  ?  nullptr  :  Lib :: getenv ( name );  };
 
     mut .env .soft ( "HOME",    in.dir  || get("HOME")    || out.dir  );
     mut .env .soft ( "LOGNAME", in.name || get("LOGNAME") || out.name );
     mut .env .soft ( "USER",    in.name || get("USER")    || out.name );
 
     auto  vars  =  { "LANG", "LC_COLLATE",  "TERM", "TZ" };
-    for  ( auto s : vars )  {  mut .env .soft_copy ( s );  }  }
+    for  ( auto s : vars )  {  mut .env .soft_copy ( s );  }
 
-
-  static void  shell  ()  {    //  --------------------------  Env_Tool  shell
-
-    auto  shell  =  [&]  ( Str path )  {
-      if  ( is_file ( path )  &&  access ( path.s, X_OK ) == 0 )  {
-	mut .env .set ( "SHELL", path );  return  true;  }
-      return  false;  };
-
-    st .env .get ( "SHELL" )
-      ||  shell ( st .inside .shell )
-      ||  shell ( getenv("SHELL") )
-      ||  shell ( st .outside .shell )
-      ||  shell ( "/bin/ash" )
-      ||  shell ( "/bin/sh" );  }
+    mut .env .soft ( "FAKEROOTDONTTRYCHOWN=1" );  }
 
 
   static void  argv  ()  {    //  ----------------------------  Env_Tool  argv
-    if  ( st.command[0] )  {  return;  }
+    if  ( st.dash[1] )  {  mut .command  =  st.dash + 1;  return;  }
     Str  shell  =  st .env .get ( "SHELL" );
     if  ( shell == "/bin/bash" )  {  mut .command  =  bash_command;  }
     else if  ( shell )  {
-      bash_command[0]    =  shell.s;
-      bash_command[1]    =  nullptr;
-      mut .command  =  bash_command;  }
+      bash_command[0]  =  shell.s;
+      bash_command[1]  =  nullptr;
+      mut .command     =  bash_command;  }
     else  {  die1 ( "please specify a command" );  }  }
 
 
@@ -1184,21 +1246,19 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
     oStr  opts  =  nullptr;
     oStr  host  =  "./" + ( st .guestname || st .newroot ) .basename()  ;
 
-    if  (  st    .opt_network  == o_network
-	   ||  st.opt_root     == o_root
-	   ||  st.opt_x11      == o_x11  )  {
-      opts  =  "-";
-      if  ( st.opt_env     == o_env     )  {  opts  +=  "e";  }
-      if  ( st.opt_network == o_network )  {  opts  +=  "n";  }
-      if  ( st.opt_root    == o_root    )  {  opts  +=  "r";  }
-      if  ( st.opt_write   == o_write   )  {  opts  +=  "w";  }
-      if  ( st.opt_x11     == o_x11     )  {  opts  +=  "x";  }  }
+    opts  =  "-";
+    if  ( opt('e') )  {  opts  +=  "e";  }
+    if  ( opt('n') )  {  opts  +=  "n";  }
+    if  ( opt('p') )  {  opts  +=  "p";  }
+    if  ( opt('r') )  {  opts  +=  "r";  }
+    if  ( opt('w') )  {  opts  +=  "w";  }
+    if  ( opt('x') )  {  opts  +=  "x";  }
 
     oStr  ps1  =  "PS1=";
 
     if  ( term  ==  "xterm-256color" )  {    //  set terminal title
       ps1  +=  Str("\\[\\e]0;") + user + "  ";
-      if  ( opts )  {  ps1  +=  opts  +  "  ";  }
+      if  ( opts.n > 1 )  {  ps1  +=  opts  +  "  ";  }
       ps1  +=  host  +  "  \\W\\007\\]";  }
 
     //r  bright_cyan  =  "\\[\\e[0;96m\\]";
@@ -1208,14 +1268,21 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
     Str  normal       =  "\\[\\e[0;39m\\]";
 
     ps1  +=  Str("\n") + cyan + user + "  ";
-    if  ( opts )  {  ps1  +=  bright_red + opts + cyan + "  ";  }
+    if  ( opts.n > 1 )  {  ps1  +=  bright_red + opts + cyan + "  ";  }
     ps1  +=  host + "  \\W" + normal + "  ";
 
-    mut .env .set ( leak ( ps1 ) );  }
+    mut .env .set ( ps1.leak() );  }
 
 
   static bool  is_busybox  ( Str path )  {    //  ------  Env_Tool  is_busybox
     return  is_link ( path )  &&  readlink ( path ) == "/bin/busybox";  }
+
+
+  static void  passthru  ()  {    //  --------------------  Env_Tool  passthru
+    if  ( opt('e') )  {
+      for  (  Argv p (environ)  ;  p[0].n  ;  p ++  )  {
+	trace ( "env_tool  passthru  %s", p[0].s );
+	mut .env .soft ( * p );  }  }  }
 
 
   static void  ps1  ()  {    //  ------------------------------  Env_Tool  ps1
@@ -1225,11 +1292,19 @@ struct  Env_Tool  :  Lib  {  //  xxen  ---------------------  struct  Env_Tool
 	   ||  is_busybox ( st.command[0] )  )  {  ps1_bash();  }  }
 
 
-  static void  passthru  ()  {    //  --------------------  Env_Tool  passthru
-    if  ( st.opt_env == o_env )  {
-      for  (  Argv p (environ)  ;  * p  ;  p ++  )  {
-	trace1 ( "env_tool  passthru  %s", p[0].s );
-	mut .env .soft ( * p );  }  }  }
+  static void  shell  ()  {    //  --------------------------  Env_Tool  shell
+
+    auto  shell  =  [&]  ( Str path )  {
+      if  ( is_file ( path )  &&  access ( path.s, X_OK ) == 0 )  {
+	mut .env .set ( "SHELL", path );  return  true;  }
+      return  false;  };
+
+    st .env .get ( "SHELL" ).n
+      ||  shell ( st .inside .shell )
+      ||  shell ( getenv("SHELL") )
+      ||  shell ( st .outside .shell )
+      ||  shell ( "/bin/ash" )
+      ||  shell ( "/bin/sh" );  }
 
 
 public:
@@ -1259,7 +1334,9 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
 
   void  init  ()  {    //  -------------------------------------  Lxroot  init
-    q.options ( Init_Tool :: process );  }
+    q.options ( Init_Tool :: process );
+    if  ( st.newroot == nullptr )  {
+      die1 ( "please specify a newroot directory" );  }  }
 
 
   void  unshare  ()  {    //  -------------------------------  Lxroot  unshare
@@ -1267,8 +1344,8 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
     clone_flags  |=  CLONE_NEWNS;      //  mount namespace  ( optional )
     clone_flags  |=  CLONE_NEWPID;     //  pid   namespace  ( optional )
     clone_flags  |=  CLONE_NEWUSER;    //  user  namespace  ( required )
-    clone_flags  |=  st.opt_network == o_network  ?  0  :  CLONE_NEWNET  ;
-    trace1 ( "" );
+    clone_flags  |=  opt('n')  ?  0  :  CLONE_NEWNET  ;
+    trace ( "" );
     sys .unshare ( clone_flags );  }
 
 
@@ -1276,8 +1353,8 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
     //  see  https://lwn.net/Articles/532593/
 
-    uid_t  un_uid  =  st.opt_root == o_root  ?  0  :  st.uid  ;
-    gid_t  un_gid  =  st.opt_root == o_root  ?  0  :  st.gid  ;
+    const uid_t  un_uid  =  opt('r')  ?  0  :  st.uid  ;
+    const gid_t  un_gid  =  opt('r')  ?  0  :  st.gid  ;
 
     char  u_map[80];
     char  g_map[80];
@@ -1286,7 +1363,7 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
     snprintf ( u_map, sizeof u_map, "%u %u 1\n", un_uid, st.uid );
     snprintf ( g_map, sizeof g_map, "%u %u 1\n", un_gid, st.gid );
 
-    trace1 ( "  uid_map  %u %u 1  deny  %u %u 1",
+    trace ( "  uid_map  %u %u 1  deny  %u %u 1",
 	     un_uid,  st.uid,  un_gid,  st.gid );
 
     sys .open   (  & fd,  "/proc/self/uid_map",  O_RDWR    );
@@ -1306,13 +1383,25 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
       sys .bind ( b.newroot_dst, b.src );  }  );
     //  note  /proc is mounted later on in Lxroot :: proc().
     //  note  someday I may integrate /dev and /sys into q.bind
-    sys .bind ( st.newroot + "/dev", "/dev" );
-    sys .bind ( st.newroot + "/sys", "/sys" );  }
+    sys .bind ( oStr ( st.newroot + "/dev" ), "/dev" );
+    sys .bind ( oStr ( st.newroot + "/sys" ), "/sys" );  }
+
+
+  void  dns_check  ()  {    //  ---------------------------  Lxroot  dns_check
+    Str   src  =  "/etc/resolv.conf";
+    oStr  dst  =  st.newroot + src;
+    if  ( opt('n') == false )  {  return;  }
+    if  ( is_file ( dst ) )  {  return;  }
+    str  m  =  "\nlxroot:  Copy /etc/resolv.conf into newroot?  [y/n]  ";
+    const int  rv  =  prompt ( m, 15 );
+    if ( rv == prompt_timeout )  {  printf
+	( "\nlxroot:  Timeout.  Continuing without resolv.conf.\n" );  }
+    if ( rv == 'y' )  {  sys.file_copy ( src, dst, 0644 );  }  }
 
 
   void  fgetpwent  ()  {    //  ---------------------------  Lxroot  fgetpwent
     mut .outside .fgetpwent ( "/etc/passwd", getuid() );
-    mut .inside  .fgetpwent ( st.newroot + "/etc/passwd", getuid() );
+    mut .inside  .fgetpwent ( oStr ( st.newroot + "/etc/passwd" ), getuid() );
     Env_Tool :: before_pivot();  }
 
 
@@ -1320,23 +1409,23 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
 
   static void  expose_path    //  -----------------------  Lxroot  expose_path
-  ( Str path, opt readauto = o_none )  {
+  ( Str path, opt_t readauto = o_none )  {
     if  (  st.newroot == nullptr  )  {  return;  }
     if  (  path == nullptr        )  {  return;  }
-    mFrag  parent;
-    mopt   mode;
+    mStr  parent;
+    mopt  mode;
     q.calculate_parent ( path, parent, mode );
     oStr   parent2 ( parent );
     if  (  path .is_same_path_as ( parent2 ) )  {  return;  }
     if  (  q.actual ( parent2, mode ) == o_rw  )  {  return;  }
     if  (  readauto == o_none  ||  mode == o_ra  )  {
-      oStr  newroot_path  =  s( st.newroot, path );
+      oStr  newroot_path  =  st.newroot + path;
       if  ( is_dir ( newroot_path ) )  {
-	trace1 ( "  expose   '%s'", newroot_path.s );
+	trace ( "  expose   '%s'", newroot_path.s );
 	sys .bind ( newroot_path, newroot_path );  }  }  }
 
 
-  void  expose  ()  {    //  ---------------------------------  Lxroot  expose
+  void  expose_rw  ()  {    //  ---------------------------  Lxroot  expose_rw
     expose_path ( st .env .get ( "HOME" ), o_ra );
     expose_path ( "/tmp", o_ra );
     expose_path ( "/var/tmp", o_ra );
@@ -1344,26 +1433,37 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
       if  ( o.type == o_wd )  {  expose_path ( o.arg0 );  }  }  );  }
 
 
-  void  remount  ()  {    //  -------------------------------  Lxroot  remount
+  void  remount_ro  ()  {    //  -------------------------  Lxroot  remount_ro
     q.binds  (  [&](auto b)  {
       if ( b.actual == o_ro )  { sys .rdonly ( b.newroot_dst );  }  }  );  }
 
 
   void  option_pulse  ()  {    //  ---------------------  Lxroot  option_pulse
-    if  ( st .opt_pulse == o_pulse )  {
+    if  ( opt('p') )  {
       Str  xdg_dir  =  getenv ( "XDG_RUNTIME_DIR" );
       if  ( xdg_dir )  {
 	mut .env .soft_copy ( "XDG_RUNTIME_DIR" );
         oStr  pulse_dir  =  xdg_dir + "/pulse";
-        sys .bind ( st .newroot + pulse_dir, pulse_dir );  }
+        sys .bind ( oStr ( st .newroot + pulse_dir ), pulse_dir );  }
       else  {
         warn ( "bind_opt_pulse()  XDG_RUNTIME_DIR not set" );  }  }  }
 
 
+  void  require_env  ( Str k )  {    //  ----------------  Lxroot  require_env
+    if  ( getenv(k).n == 0 )  {  die1 ( "$%s not set", k.s );  }  }
+
+
   void  option_x11  ()  {    //  -------------------------  Lxroot  option_x11
-    if  ( st .opt_x11 == o_x11 )  {
-      sys .bind ( st.newroot + "/tmp/.X11-unix", "/tmp/.X11-unix" );
-      mut .env .soft_copy ("DISPLAY");  }  }
+
+    if  ( not opt('x') )  {  return;  }
+    require_env ("DISPLAY");
+
+    sys .bind ( oStr ( st.newroot + "/tmp/.X11-unix" ), "/tmp/.X11-unix" );
+    mut .env .soft_copy ("DISPLAY");
+
+    oStr  xauthority  =  getenv("HOME") + "/.Xauthority";
+    if  (  getenv("HOME").n  &&  is_file(xauthority)  )  {
+      mut .xauthority  =  sys .file_read ( xauthority );  }  }
 
 
   void  options  ()  {    //  -------------------------------  Lxroot  options
@@ -1373,18 +1473,20 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
 
   void  pivot_prepare  ( Str pivot )  {    //  --------  Lxroot  pivot_prepare
     //  verify that pivot has at least one sub-direcotry (for put_old)
-    assert ( put_old == nullptr );
+    assert ( put_old.n == 0 );
+    assert ( put_old.s == nullptr );
     q.scandir  (  pivot,  [&](auto e)  {
-      if  (  put_old == nullptr  &&  e.is_dir()  )  {
-	put_old  =  s( "/", e.name() );  }  }  );
-    if  ( put_old == nullptr )  {
-      die1 ( "pivot_prepare  pivot contains no directories" );  }  }
+      if  (  put_old.s == nullptr
+	     &&  e.is_dir()  &&  e.name() not_eq "proc"  )  {
+	put_old  =  "/" + e.name();  }  }  );
+    if  ( put_old.n == 0 )  {
+      die1 ( "pivot_prepare  no directory in newroot" );  }  }
 
 
   void  pivot  ()  {    //  -----------------------------------  Lxroot  pivot
     if  ( st.newroot == nullptr )  {  return;  }
     pivot_prepare ( st.newroot );
-    sys .pivot  ( st.newroot,  st.newroot + put_old );
+    sys .pivot  ( st.newroot,  oStr ( st.newroot + put_old ) );
     sys .chdir  ( "/" );
     sys .chroot ( "/" );  }
 
@@ -1396,7 +1498,7 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
       sys .wait();
       if  ( WIFEXITED ( sys .wstatus ) )  {
 	exit ( WEXITSTATUS ( sys .wstatus ) );  }
-      printe ( "lxroot  warning  child exited abnormally\n" );
+      printe ( "lxroot  warning  child exited abnormally" );
       exit ( 1 );  }  }
 
 
@@ -1431,7 +1533,7 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
       if  (  st .newroot  &&  is_dir ( home )  )  { sys .chdir ( home );  }  };
 
     auto  chdir2  =  [&]  ( Str s )  {
-      if  ( s[0] != '/' )  {  chdir_home();  }
+      if  ( s && s.s[0] != '/' )  {  chdir_home();  }
       sys .chdir ( s );  };
 
     if  ( st .chdir   )  {  chdir2 ( st .chdir   );  return;  }
@@ -1439,24 +1541,66 @@ class  Lxroot  :  Lib  {    //  xxlx  -------------------------  class  Lxroot
     chdir_home();  }
 
 
+  int  xset_q  ()  {    //  ----------------------------------  Lxroot  xset_q
+
+    //  xset_q() runs after pivot, fork, and env.
+
+    if  ( not is_file ( "/usr/bin/xset" ) )  {
+      die1 ( "file not found  /usr/bin/xset\n" );  }
+
+    const int  child  =  :: fork();
+    if  ( child == -1 )  {  return  -1;  }
+    if  ( child ==  0 )  {
+      const char * const  argv[]  =  { "/usr/bin/xset", "q", nullptr };
+      close(1);                          //  close  fd 1 (stdout)
+      open ( "/dev/null", O_WRONLY );    //  reopen fd 1 (stdout)
+      execve ( argv[0], (char**) argv, (char**) st.env.data() );
+      printe ( "lxroot  xset_q  child  execve failed" );
+      exit ( 1 );  }
+    int wstatus = 0;  wait(&wstatus);  return  wstatus;  }
+
+
+  void  x11_check  ()  {    //  ------------------------------------  x11_check
+
+    //  x11_check() runs after pivot, fork, and env.
+
+    if  ( not opt('x')  )  {  return;  }
+    if  ( xset_q() == 0 )  {  return;  }
+
+    if  ( st.xauthority )  {
+      str  m  =  "\nlxroot:  Copy ~/.Xauthority into newroot?  [y/n]  ";
+      switch  ( prompt ( m, 15 ) )  {
+	case  'y':  {
+	  oStr  path  =  st .env .get("HOME") + "/.Xauthority";
+	  sys .file_write ( path, st.xauthority, 0600 );
+	  if  ( xset_q() == 0 )  {  return;  }  }  break;
+	case  prompt_timeout:
+	  printe ( "lxroot:  prompt timeout.  continuing..." );  break;  }  }
+
+    printe ( "lxroot  error  '/usr/bin/xset q' failed." );
+    die1 ( "X server connection failed." );  }
+
+
   void  xray  ()  {    //  -------------------------------------  Lxroot  xray
 
     if  ( global_opt_trace == o_trace )  {
 
-      printe ( "\n" );
-      printe ( "xray  uid  %d  %d\n", getuid(), getgid() );
-      printe ( "xray  cwd  %s\n", getcwd().s );
-      printe ( "xray  environment\n" );
+      printe ( "" );
+      printe ( "xray  uid  %d  %d", getuid(), getgid() );
+      printe ( "xray  cwd  %s", getcwd().s );
+      printe ( "xray  environment" );
       Argv ( st .env .data() ) .print ( "xray    env  " );
-      printe ( "xray  command\n" );
+      printe ( "xray  dash_dash  %s  %d",
+               st .dash[0] .s, st .dash .len() );
+      printe ( "xray  command" );
       st .command .print ( "xray    cmd  " );
 
       if  ( st .before_pivot )  {
-	printe ( "\n" );
-	printe ( "xray  binds\n" );
+	printe ( "" );
+	printe ( "xray  binds" );
 	q.binds  (  [](auto b)  { b.trace ( "  " ); }  );  }
 
-      printe ( "\n" );
+      printe ( "" );
       //  exit ( 2 );
       return;  }  }
 
@@ -1473,9 +1617,10 @@ public:
     unshare();       //  before uid_map and bind
     uid_map();       //  after unshare
     bind();          //  after unshare
+    dns_check();     //  after bind, before remount
     fgetpwent();     //  after bind, before expose
-    expose();        //  after fgetpwent, before remount
-    remount();       //  after expose
+    expose_rw();     //  after fgetpwent, before remount
+    remount_ro();    //  after expose
     options();       //  late, before pivot, after remount
     /*  pivot to umount2 should be as tight as possible  */
     pivot();         //  late, but before fork? ( !! all paths change !! )
@@ -1485,6 +1630,7 @@ public:
     /*  pivot to umount2 should be as tight as possible  */
     env();           //  after pivot, therefore after umount2
     chdir();         //  after env
+    x11_check();     //  after pivot, fork, env.  after chdir (why?)
     xray();
     exec();          //  last
     return  1;  }    //  exec failed!
@@ -1507,7 +1653,7 @@ int  main  ( const int argc, str argv[] )  {    //  --------------------  main
 
 //  lxroot.cpp  -  Create and use chroot-style virtual software environments.
 //
-//  Copyright (c) 2021 Parke Bostrom, parke.nexus at gmail.com
+//  Copyright (c) 2022 Parke Bostrom, parke.nexus at gmail.com
 //
 //  This program is free software: you can redistribute it and/or
 //  modify it under the terms of version 3 of the GNU General Public

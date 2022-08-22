@@ -1,6 +1,6 @@
 
 
-#  version  20211226
+#  version  20220822
 
 
 bin       ?=  bin
@@ -25,26 +25,23 @@ Usage:								\n\
   make  build           #  build bin/lxroot			\n\
   make  unit            #  run the unit tests			\n\
   make  demo            #  run the interactive Alpine demo	\n\
-  make  demo3           #  run the Arch Linux + Chromium demo	\n\
   make  static          #  build a statically linked lxroot	\n\
 								\n\
   make  clean           #  delete bin/lxroot			\n\
   make  unit-clean      #  delete the unit test environment	\n\
   make  demo-clean      #  delete the demo environment		\n\
-  make  demo3-clean     #  delete the demo3 environment		\n\
-  make  static-clean    #  delete the static build environment  \n\
-								\n\
-  make  demo3-root      #  enter demo3 as (simulated) root	"
+  make  static-clean    #  delete the static build environment"
 
 
 $(bin)/lxroot:  $(deps)  $(bin)/lxroot-unit
-	$(bin)/lxroot-unit
+	$(bin)/lxroot-unit  ||  \
+          {  /usr/bin/gdb  -q  -ex run  $(bin)/lxroot-unit  ;  false  ;  }
 	g++  -g   $(gpp_opts)  lxroot.cpp  -o $@
 
 
-#  Note:  Lxroot has two sets of unit tests.
-#    1)  unit.cpp compiles to bin/lxroot-unit and test various C++ functions.
-#    2)  aux/unit.sh tests the compiled bin/lxroot executable.
+#  Note:  There are two levels of unit tests:
+#    1)  C++ unit tests in unit.cpp
+#    2)  command line tests in aux/unit.sh
 $(bin)/lxroot-unit:  $(deps)
 	g++  -g   $(gpp_opts)  unit.cpp  -o $@
 
@@ -97,23 +94,3 @@ demo-clean:  clean
 
 static:
 	bash  aux/static.sh  $(bin)/lxroot  $(static)
-
-
-#  demo 3  -----------------------------------------------------------  demo 3
-
-
-
-
-demo3:  demo-prepare
-	/bin/sh  aux/demo.sh  demo3  $(demo)
-
-
-demo3-root:  demo-prepare
-	/bin/sh  aux/demo.sh  demo3  $(demo)  root
-
-
-demo3-clean:
-	@  #  paths hardcoded for safety
-	mkdir  -p       /tmp/lxroot-demo/demo3
-	chmod  -R  u+w  /tmp/lxroot-demo/demo3
-	rm     -rf      /tmp/lxroot-demo/demo3

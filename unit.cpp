@@ -4,7 +4,7 @@
 //  Copyright (c) 2021 Parke Bostrom, parke.nexus at gmail.com
 //  Distributed under GPLv3 (see end of file) WITHOUT ANY WARRANTY.
 
-//  version  20211030
+//  version  20220822
 
 
 #define   LXROOT_MAIN_SKIP  1
@@ -14,53 +14,141 @@
 struct  Unit  {    //  -----------------------------------------  struct  Unit
 
 
-  void  t_basename  ( Str s, Str expect )  {    //  --------  Unit  t_basename
-    if  ( s.basename() == expect )  {  return;  }
-    oStr  actual  =  s.basename();
-    printe ( "basename_test  failed\n" );
-    printe ( "  s       %s\n", s.s      );
-    printe ( "  expect  %s\n", expect.s );
-    printe ( "  actual  %s\n", actual.s );
+  void  t_basename  ( Str input, Str expect, cint line )  {    //  -----------
+    Str  actual  =  input.basename();
+    if  ( actual == expect )  {  return;  }
+    printe ( "\n"  "basename_test  failed  line %d\n", line );
+    printe ( "  input   %d  '%s'", input.n,  input.s  );
+    printe ( "  expect  %d  '%s'", expect.n, expect.s );
+    printe ( "  actual  %d  '%s'", actual.n, actual.s );
     abort();  }
+
+
+  void  t_Str  ()  {    //  -------------------------------------  Unit  t_Str
+
+    printe ("");
+
+    Str  null   =  nullptr;       assert  ( null.n  == 0 );
+    ;                             assert  ( null.s  == nullptr );
+
+    Str  empty  =  "";            assert  ( empty.n == 0 );
+    ;                             assert  ( empty.s not_eq nullptr );
+
+    Str  a      =  "a";           assert  ( a.n  == 2 );
+    Str  a1     =  { "a", 1 };    assert  ( a1.n == 1 );
+    Str  a2     =  { "a", 2 };    assert  ( a2.n == 2 );
+
+    Str  trace  =  "--trace";     assert  ( trace.starts_with ("--") );
+    ;                             assert  ( trace.starts_with ("-") );
+    ;                             assert  ( trace == "--trace" );
+
+    return;  }
+
+
+  void  t_Cat  ()  {    //  -------------------------------------------  t_Cat
+
+    Str  a  =  "a";
+    Str  b  =  "b";
+    Str  c  =  "c";
+    Str  d  =  "d";
+
+    Cat2  c2  =  a + b;
+
+    assert  ( c2.a == "a" );
+    assert  ( c2.b == "b" );
+
+    assert  ( (&c2.a)[0] == "a" );
+    assert  ( (&c2.a)[1] == "b" );
+
+    Cat3  c3  =  a + b + c;
+
+    assert  ( c3.a == "a" );
+    assert  ( c3.b == "b" );
+    assert  ( c3.c == "c" );
+
+    assert  ( (&c3.a)[0] == "a" );
+    assert  ( (&c3.a)[1] == "b" );
+    assert  ( (&c3.a)[2] == "c" );
+
+    Cat3  c3a  =  "a" + b + "c";
+
+    assert  ( c3a.a == "a" );
+    assert  ( c3a.b == "b" );
+    assert  ( c3a.c == "c" );
+
+    assert  ( (&c3a.a)[0] == "a" );
+    assert  ( (&c3a.a)[1] == "b" );
+    assert  ( (&c3a.a)[2] == "c" );
+
+    assert  ( oStr (  a  +  b  ) == "ab" );
+    assert  ( oStr (  a  + "b" ) == "ab" );
+    assert  ( oStr ( "a" +  b  ) == "ab" );
+
+    assert  ( oStr (  a  +  b  +  c  ) == "abc" );
+    assert  ( oStr (  a  + "b" + "c" ) == "abc" );
+    assert  ( oStr ( "a" +  b  +  c  ) == "abc" );
+
+    assert  ( oStr (  a  +  b  +  c  +  d  ) == "abcd" );
+    assert  ( oStr (  a  + "b" + "c" + "d" ) == "abcd" );
+    assert  ( oStr ( "a" +  b  +  c  +  d  ) == "abcd" );
+
+    return;  }
 
 
   void  t_basename_all  ()  {    //  -------------------  Unit  t_basename_all
 
-    t_basename ( "",          ""    );
-    t_basename ( "/",         "/"   );
-    t_basename ( "//",        "/"   );
-    t_basename ( "///",       "/"   );
-    t_basename ( "a",         "a"   );
-    t_basename ( "/b",        "b"   );
-    t_basename ( "c/",        "c"   );
-    t_basename ( "/d/",       "d"   );
-    t_basename ( "e/f",       "f"   );
-    t_basename ( "/g/h",      "h"   );
-    t_basename ( "abc",       "abc" );
-    t_basename ( "/def",      "def" );
-    t_basename ( "ghi/",      "ghi" );
-    t_basename ( "/jkl/",     "jkl" );
-    t_basename ( "mno/pqr",   "pqr" );
-    t_basename ( "/stu/vwx",  "vwx" );
-    t_basename ( "./xyz",     "xyz" );
+    t_basename ( "",          "",     __LINE__  );
+    t_basename ( "/",         "/",    __LINE__  );
+    t_basename ( "//",        "/",    __LINE__  );
+    t_basename ( "///",       "/",    __LINE__  );
+    t_basename ( "a",         "a",    __LINE__  );
+    t_basename ( "/b",        "b",    __LINE__  );
+    t_basename ( "c/",        "c",    __LINE__  );
+    t_basename ( "/d/",       "d",    __LINE__  );
+    t_basename ( "e/f",       "f",    __LINE__  );
+    t_basename ( "/g/h",      "h",    __LINE__  );
+    t_basename ( "abc",       "abc",  __LINE__  );
+    t_basename ( "/def",      "def",  __LINE__  );
+    t_basename ( "ghi/",      "ghi",  __LINE__  );
+    t_basename ( "/jkl/",     "jkl",  __LINE__  );
+    t_basename ( "mno/pqr",   "pqr",  __LINE__  );
+    t_basename ( "/stu/vwx",  "vwx",  __LINE__  );
+    t_basename ( "./xyz",     "xyz",  __LINE__  );
 
     return;  }
 
 
   void  t_oStr  ()  {    //  -----------------------------------  Unit  t_oStr
 
-    Str   a   =  "a";
-    Str   b   =  "b";
-    oStr  ab  =  a + b;
-    assert  ( ab == "ab" );
-    assert  ( ab == a+b  );
-    Frag  c   =  "c";
-    Frag  d   =  "d";
-    oStr  cd  =  c + "=" + d;
-    assert  ( cd == "c=d" );
-    oStr  ef  =  cd + "ef" + "gh";
-    assert  ( ef == "c=defgh" );
-    assert  ( cd == "c=d" );
+    Str   a   =  "a";                 //  printe ( "a   '%s'", a.s  );
+    Str   a1  =  {"a", 1};
+    Str   a2  =  {"a", 2};            //  printe ( "a   '%s'", a.s  );
+
+    assert ( a  == "a" );
+    assert ( a1 == "a" );
+    assert ( a2 == "a" );
+    assert ( a  == a1  );
+    assert ( a  == a2  );
+
+    Str   b   =  "b";                 //  printe ( "b   '%s'", b.s  );
+
+    assert  ( a not_eq b );
+
+    oStr  ab  =  a + b;               //  printe ( "ab  '%s'", ab.s );
+
+    assert  ( ab == "ab" );           //
+    assert  ( ab == oStr(a+b)  );     //
+
+    Str  c    =  "c";                 //
+    Str  d    =  "d";                 //
+    oStr  cd  =  c + "=" + d;         //
+
+    assert  ( cd == "c=d" );          //
+
+    oStr  ef  =  cd + "ef" + "gh";    //
+
+    assert  ( ef == "c=defgh" );      //
+    assert  ( cd == "c=d" );          //
 
     return;  }
 
@@ -106,6 +194,8 @@ struct  Unit  {    //  -----------------------------------------  struct  Unit
 
 
   void  main  ()  {    //  -------------------------------------  Unit  main
+    t_Str();
+    t_Cat();
     t_basename_all();
     t_oStr();
     t_Argv();

@@ -1,82 +1,20 @@
 
 
 //  str.cpp  -  Parke's string library.
-//  Copyright (c) 2021 Parke Bostrom, parke.nexus at gmail.com
+//  Copyright (c) 2022 Parke Bostrom, parke.nexus at gmail.com
 //  Distributed under GPLv3 (see end of file) WITHOUT ANY WARRANTY.
 
-//  version  20211030
+
+//  version  20220822
 
 
-
-
-struct  mFrag;     //  -------------------------------  declare  struct  mFrag
-struct  mStr;      //  --------------------------------  declare  struct  mStr
-class   oStr;      //  ---------------------------------  declare  class  oStr
-class   Concat;    //  -------------------------------  declare  class  Concat
-
-typedef  const char *  mstr;    //  ---------------------------  typedef  mstr
-typedef  const mstr    str;     //  ----------------------------  typedef  str
-typedef  const mFrag   Frag;    //  xxfr  ---------------------  typedef  Frag
-typedef  const mStr    Str;     //  xxst  ----------------------  typedef  Str
-
-
-
-
-struct  mFrag  {    //  xxmf  ---------------------------------  struct  mFrag
-
-
-  mstr  s  =  nullptr;
-  int   n  =  0;
-
-
-  mFrag  ()  {}    //  ------------------------------------------  mFrag  ctor
-  mFrag  ( str s        )  :  s(s),  n(s?strlen(s):0)  {}
-  mFrag  ( str s, int n )  :  s(s),  n(n)              {}
-  mFrag  ( str a, str b )  :  s(a),  n( b - a + 1 )    {}
-
-
-  explicit operator bool  ()  const  {  return  s;  }    //  --------  op bool
-
-
-  bool  operator ==  ( Frag & o )  const  {    //  -------------  mFrag  op ==
-    return  n == o.n  &&  memcmp ( s, o.s, n ) == 0;  }
-
-
-  Concat  operator +  ( Frag & o )  const;    //  ---------------  mFrag  op +
-
-
-  char  c  ()  const  {  return  n > 0  ?  * s  :  '\0'  ;  }    //  ------  c
-  void  next  ()  {  if  ( n > 0 )  {  s ++;  n --;  }  }    //  -------  next
-
-
-  mFrag  capture_until  ( const char accept )  {    //  -------  capture_until
-    return  Frag ( s, find(accept).s - s );  }
-
-
-  mFrag &  find  ( const char accept )  {    //  ----------------  mFrag  find
-    while  (  c()  &&  c() not_eq accept )  {  next();  }  return  * this;  }
-
-
-  mFrag &  find_skip  ( const char accept )  {    //  ------  mFrag  find_skip
-    return  find ( accept ) .skip ( accept );  }
-
-
-  mFrag &  skip  ( const char accept )  {    //  ----------------  mFrag  skip
-    while  (  c()  &&  c() == accept  )  {  next();  }  return  * this;  }
-
-
-/*  20211019  disabled due to creation of str.cpp.
-              global_opt_trace is undeclared.
-              it seems this trace was unused anyway.
-  void  trace  ( const char * const message )  const  {    // --  mFrag  trace
-    if  ( global_opt_trace == o_trace )  {
-      printe ( "%s  >", message );
-      fwrite ( s, n, 1, stderr );
-      printe ( "<\n" );  }  }
-*/
-
-
-};    //  end  struct  mFrag  ----------------------------  end  struct  mFrag
+;                 typedef  const int     cint;    //  --------  typedef  cint
+;                 typedef  const char *  mstr;    //  --------  typedef  mstr
+;                 typedef  const mstr    str;     //  --------  typedef   str
+struct  mStr;     typedef  const mStr    Str;     //  --------  typedef   Str
+struct  mCat2;    typedef  const mCat2   Cat2;    //  --------  typedef  Cat2
+struct  mCat3;    typedef  const mCat3   Cat3;    //  --------  typedef  Cat3
+struct  mCat4;    typedef  const mCat4   Cat4;    //  --------  typedef  Cat4
 
 
 
@@ -84,52 +22,29 @@ struct  mFrag  {    //  xxmf  ---------------------------------  struct  mFrag
 struct  mStr  {    //  xxms  -----------------------------------  struct  mStr
 
 
-  //  mStr is a convenience wrapper around a mstr (i.e. 'const char *').
-  //  s points to either (a) nullptr or (b) a null-terminated string.
-  //  an mStr does not own s.  (But see also derived class oStr.)
-  //  an mStr makes no guarantee about the lifetime of *s.
+  int   n  =  0;          //  for non-empty strings, length *including* '\0'
+  mstr  s  =  nullptr;    //  a pointer to the string
 
 
-  mstr  s  =  nullptr;   //  a pointer to the string.
+  mStr  ()  {}
+  mStr  ( str s )          :  n(ctor_len(s)),  s(s)  {}
+  mStr  ( str s, cint n )  :  n(n),            s(s)  {}
 
 
-  mStr  ()  {}    //  --------------------------------------------  mStr  ctor
-  mStr  ( str s )  :  s(s)  {}    //  ----------------------------  mStr  ctor
-
-
-  operator bool  ()  const  {  return  s;  }    //  --------  mStr  cast  bool
-  operator Frag  ()  const  {  return  s;  }    //  --------  mStr  cast  Frag
+  bool  operator !=  ( Str & o )  const  {  return  not operator == (o);  }
+  Str   operator ||  ( Str & o )  const  {  return  n  ?  * this  :  o  ;  }
+  Cat2  operator +  ( Str & o )  const;    //  ----------  declare  mStr  op +
+  explicit operator bool  ()  const  {  return  n;  }    //  -----  cast  bool
+  static int  max  ( cint a, cint b )  {  return  a>b ? a : b ;  }    //   max
 
 
   bool  operator ==  ( Str & o )  const  {    //  ---------------  mStr  op ==
     if  ( s == nullptr  &&  o.s == nullptr )  {  return  true;   }
     if  ( s == nullptr  ||  o.s == nullptr )  {  return  false;  }
-    return  strcmp ( s, o.s ) == 0;  }
+    return  len() == o.len()  &&  ( memcmp ( s, o.s, len() ) == 0 );  }
 
 
-  mStr  operator ||  ( const mStr & o )  const  {    //  --------  mStr  op ||
-    return  s  ?  * this  :  o  ;  }
-
-
-  char  operator *  ()  const  {    //  --------------------------  mStr  op *
-    return  s  ?  *s  :  '\0';  }
-
-
-  char  operator []  ( int index )  const  {    //  -------------  mStr  op []
-    if  ( s == nullptr )  {  return  0;  }
-    return  skip ( index ) .s[0];  }
-
-
-  mStr  operator ++  ( int )  {    //  --------------------------  mStr  op ++
-    return  s && *s  ?  s++  :  s  ;  }
-
-
-  Concat  operator +  ( Frag o )  const;    //  ---------  declare  mStr  op +
-  Concat  operator +  ( str  o )  const;    //  ---------  declare  mStr  op +
-  Concat  operator +  ( Str  o )  const;    //  ---------  declare  mStr  op +
-
-
-  Frag  basename  ()  const  {    //  -------------------------  mStr  basename
+  Str  basename  ()  const  {    //  -------------------------  mStr  basename
     if  ( s == nullptr )  {  return  nullptr;  }
     //    /foo/bar
     //     a  bc
@@ -142,41 +57,51 @@ struct  mStr  {    //  xxms  -----------------------------------  struct  mStr
     for  (;;)  {
       mstr  b  =  a + ( a[0] ? 1 : 0 );
       while  ( b[0] && b[0] != '/' )  {  b++;  }
-      if     ( b[0] == '\0'        )  {	 return  Frag ( a, b-1 );  }
+      if     ( b[0] == '\0'        )  {  return  Str ( a, b-a );  }
       mstr  c  =  b + 1;
       while  ( c[0] == '/'         )  {  c++;  }
-      if     ( c[0] == '\0'        )  {  return  Frag ( a, b-1 );  }
+      if     ( c[0] == '\0'        )  {  return  Str ( a, b-a );  }
       a  =  c;  }  }
 
 
-  Frag  capture_until  ( char c )  const  {    //  ------  mStr  capture_until
-    mStr  p  =  s;  while  (  p && * p  &&  * p != c  )  {  p ++;  }
-    return  Frag ( s, p.s - s );  }
+  Str  capture_until  ( const char accept )  const  {    //  --  capture_until
+    return  Str ( s, find(accept).s - s );  }
 
 
-  const void *  chr  ( const int c )  const  {    //  -------------  mStr  chr
-    return  s  ?  :: strchr ( s, c )  :  nullptr  ;  }
+  const void *  chr  ( cint c )  const  {    //  ------------------  mStr  chr
+    return  s  ?  :: memchr ( s, c, n )  :  nullptr  ;  }
 
 
-  Frag  env_name  ()  const  {    //  ------------------------  mStr  env_name
+  constexpr static int  ctor_len  ( mstr p )  {    //  -------  mStr  ctor_len
+    if  (  p == nullptr  ||  * p == '\0'  )  {  return  0;  }
+    int  j  =  1;  while  ( p && * p )  {  j++;  p++;  };  return  j;  }
+
+
+  Str  env_name  ()  const  {    //  ------------------------  mStr  env_name
     return  head ( "=" );  }
 
 
-  Frag  head  ( str sep, int start = 0 )  const  {    //  --------  mStr  head
-    if  ( s == nullptr )  {  return  Frag();  }
+  Str  find  ( const char accept )  const  {    //  --------------  mStr  find
+    //  20220820  are find() and tail() redundant?
+    int  j  =  0;  for  (  ;  j < n && s[j] not_eq accept;  j ++  );
+    return  Str ( s+j, n-j );  }
+
+
+  Str  head  ( str sep, int start = 0 )  const  {    //  ---------  mStr  head
+    if  ( s == nullptr )  {  return  nullptr;  }
     mstr  p      =  s;
     while  (  * p  &&  start-- > 0  )  {  p++;  }
     str   found  =  :: strstr ( p, sep );
-    if  ( found )  {  return  Frag ( p, found - p );  }
-    return  Frag();  }
+    if  ( found )  {  return  Str ( p, found - p );  }
+    return  nullptr;  }
 
 
   bool  is_inside  ( Str path )  const  {    //  ------------  mStr  is_inside
 
-    //  return true iff path is an ancestor of s, or equal to s.
+    //  return true iff path is an ancestor of s, or is equal to s.
 
-    mStr  descendant  =  s;
-    mStr  ancestor    =  path;
+    mstr  descendant  =  s;
+    mstr  ancestor    =  path.s;
     bool  is_inside   =  false;
 
     auto  skip_slash  =  [&]  ()  {
@@ -188,9 +113,9 @@ struct  mStr  {    //  xxms  -----------------------------------  struct  mStr
     skip_slash();
     while  ( * ancestor == * descendant )  {
       switch ( * ancestor ) {
-	case '\0':  return  true;  break;
-	case '/':   skip_slash();  break;
-	default:    ancestor ++;  descendant ++;  break;  }  }
+        case '\0':  return  true;  break;
+        case '/':   skip_slash();  break;
+        default:    ancestor ++;  descendant ++;  break;  }  }
 
     return  is_inside  ||  ( * ancestor == '\0' && * descendant == '/' );  }
 
@@ -199,39 +124,32 @@ struct  mStr  {    //  xxms  -----------------------------------  struct  mStr
     return  is_inside(path)  &&  path.is_inside(*this);  }
 
 
-  int  n  ()  const  {    //  ---------------------------------------  mStr  n
-    return  s  ?  strlen ( s )  :  0  ;  }
-
-
-  Str  skip  ( int n )  const  {    //  --------------------------  mStr  skip
-    mstr  p  =  s;
-    while  ( n-- > 0 )  {
-      if  (  p  &&  * p )  {  p++; }
-      else  {  return  nullptr;  }  }
-    return  p;  }
+  int  len  ()  const  {    //  -----------------------------------  mStr  len
+    //  the length not including the (optional) terminating '\0'
+    return  n - ( n && s[n-1] == '\0' ? 1 : 0 );  }
 
 
   Str  skip_all  ( char c )  const  {    //  -----------------  mStr  skip_all
-    mStr  p  =  s;
-    while  (  p  &&  * p == c )  {  p ++;  };  return  p;  }
+    int   j  =  n;  mstr  p  =  s;
+    while  (  j  &&  * p == c )  {  j --;  p ++;  };  return  Str(p,j);  }
 
 
   int  spn  ( Str accept )  const  {    //  -----------------------  mStr  spn
+    //  danger  spn() assumes (safely?) that s and accept are null-terminated.
     return  s  ?  :: strspn ( s, accept.s )  :  0  ;  }
 
 
-  bool  startswith  ( Frag o )  const  {    //  ------------  mStr  starstwith
-    return  s  &&  strncmp ( s, o.s, o.n ) == 0;  }
+  bool  starts_with  ( Str o )  const  {    //  -----------  mStr  starts_with
+    return  len() >= o.len()  &&  memcmp ( s, o.s, o.len() ) == 0;  }
 
 
-  Str  tail  ( Str sep )  const  {    //  ------------------------  mStr  tail
-    Str  found  =  :: strstr ( s, sep.s );
-    return  found  ?  found.s + sep.n()  :  nullptr  ;  }
+  Str  tail  ( str sep )  const  {    //  ------------------------  mStr  tail
+    Str  found  =  :: strstr ( s, sep );
+    return  found.s  ?  found.s + :: strlen(sep)  :  nullptr  ;  }
 
 
-  Frag  trunk  ( )  const  {    //  ------------------------------  mStr  trunk
+  Str  trunk  ( )  const  {    //  ------------------------------  mStr  trunk
     return  skip_all('/') .capture_until('/');  }
-
 
 
 };    //  end  struct  mStr  ------------------------------  end  struct  mStr
@@ -239,32 +157,25 @@ struct  mStr  {    //  xxms  -----------------------------------  struct  mStr
 
 
 
-mStr  leak  ( Frag o )  {    //  ---------------------  global  function  leak
-  //  lxroot quickly exec()s on success or exit()s on failure.
-  //  therefore, a few convenient and minor memory leaks are acceptable.
-  char *  rv  =  (char*) malloc  ( o.n + 1 );    //  intentional leak.
-  if  ( rv )  {
-    memcpy ( rv, o.s, o.n );
-    rv [ o.n ]  =  '\0';  }
-  return  rv;  }
+struct  mCat2  {    //  ---------------------------------------  struct  mCat2
+  Str  a, b;    //  used for operator + and string concatenation
+  mCat2  ( Str & a, Str & b )  :  a(a), b(b)  {}
+  Cat3  operator +  ( Str & c )  const;  };
+
+struct  mCat3  {    //  ---------------------------------------  struct  mCat3
+  Str  a, b, c;    //  used for operator + and string concatenation
+  mCat3  ( Cat2 & o, Str & c )  :  a(o.a), b(o.b), c(c)  {}
+  Cat4  operator +  ( Str & d )  const;  };
+
+struct  mCat4  {    //  ---------------------------------------  struct  mCat4
+  Str  a, b, c, d;    //  used for operator + and string concatenation
+  mCat4  ( Cat3 & o, Str & d )  :  a(o.a), b(o.b), c(o.c), d(d)  {}  };
 
 
-
-
-struct  Concat_2  {    //  xxco  ---------------------------  struct  Concat_2
-  mFrag s[3];
-  Concat_2  ( Frag a, Frag b = 0, Frag c = 0 )  :  s{a,b,c}  {}
-};    //  end  struct  Concat_2  ----------------------  end  struct  Concat_2
-
-
-
-
-Concat_2  s  ( Frag a, Frag b = 0, Frag c = 0 )  {    //  xxs  ----  global  s
-  return  Concat_2 ( a, b, c );  }
-
-
-Concat_2  s  ( Str a, Str b = 0, Str c = 0 )  {    //  xxs  -------  global  s
-  return  Concat_2 ( a, b, c );  }
+Cat2  operator +  ( str a, Str & b )           {  return  Cat2(a,b);      }
+Cat2  mStr  :: operator +  ( Str & b )  const  {  return  Cat2(*this,b);  }
+Cat3  mCat2 :: operator +  ( Str & c )  const  {  return  Cat3(*this,c);  }
+Cat4  mCat3 :: operator +  ( Str & d )  const  {  return  Cat4(*this,d);  }
 
 
 
@@ -272,46 +183,62 @@ Concat_2  s  ( Str a, Str b = 0, Str c = 0 )  {    //  xxs  -------  global  s
 struct  oStr  :  mStr   {    //  xxos  -------------------------  struct  oStr
 
 
-  int  n  =  0;
-
-
   oStr  ()  {}    //  --------------------------------------------  oStr  ctor
-
-  oStr  ( Frag  o )             :  mStr()  {  * this  +=  o;  }
-  oStr  ( str   o )             :  mStr()  {  * this  +=  o;  }
-  oStr  ( Str & o )             :  mStr()  {  * this  +=  o;  }
-  oStr  ( const Concat_2 & o )  :  mStr()  {  * this  =   o;  }
-
-  oStr  (       oStr && o )  :  mStr()  {  s=o.s; n=o.n; o.s=nullptr; o.n=0; }
-  oStr  ( const oStr &  o )  :  mStr()  {  * this  +=  o;  }
+  oStr  ( str    o )  {  append(o);    }    //  ------------------  oStr  ctor
+  oStr  ( Str &  o )  {  append(o);    }    //  ------------------  oStr  ctor
+  oStr  ( Cat2 & o )  {  append(o);    }    //  ------------------  oStr  ctor
+  oStr  ( Cat3 & o )  {  append(o);    }    //  ------------------  oStr  ctor
+  oStr  ( Cat4 & o )  {  append(o);    }    //  ------------------  oStr  ctor
+  oStr  (       oStr && o )  {  s=o.s; n=o.n; o.s=nullptr; o.n=0; }    // ctor
+  oStr  ( const oStr &  o )  :  mStr()  {  append(o);  }    //  --  oStr  ctor
 
 
   ~oStr  ()  {    //  --------------------------------------------  oStr  dtor
+    if  ( n )  {  memset ( (char*) s, 'c', n - 1 );  }
     free ( (char*) s );  }
 
 
-  void  operator =  ( Frag   o )        {  n=0;  * this += o;   }    //  -----
-  void  operator =  ( str    o )        {  * this  =  Frag(o);  }    //  -----
-  void  operator =  ( Str    o )        {  * this  =  Frag(o);  }    //  -----
-  void  operator =  ( const oStr & o )  {  * this  =  Frag(o);  }    //  -----
+  void  operator =  ( str    o )        {  n=0;  append(o);  }    //  --  op =
+  void  operator =  ( Str &  o )        {  n=0;  append(o);  }    //  --  op =
+  void  operator =  ( Cat2 & o )        {  n=0;  append(o);  }    //  --  op =
+  void  operator =  ( Cat3 & o )        {  n=0;  append(o);  }    //  --  op =
+  void  operator =  ( Cat4 & o )        {  n=0;  append(o);  }    //  --  op =
+  void  operator =  ( const oStr & o )  {  n=0;  append(o);  }    //  --  op =
+
+  void  operator +=  ( Str &  o )  {  append(o);  }    //  ------------  op +=
+  void  operator +=  ( Cat2 & o )  {  append(o);  }    //  ------------  op +=
+  void  operator +=  ( Cat3 & o )  {  append(o);  }    //  ------------  op +=
+  void  operator +=  ( Cat4 & o )  {  append(o);  }    //  ------------  op +=
 
 
-  void  operator =  ( const Concat_2 & t )  {    //  -------------  oStr  op =
-    oStr & r  =  * this;  r = t.s[0];  r += t.s[1];  r += t.s[2];  }
+  void  append  ( Str & o )  {    //  --------------------------  oStr  append
+    n         =  max(1,n) + o.len();
+    char * p  =  realloc(n);
+    memcpy ( p + n - 1 - o.len(), o.s, o.len() );  }
 
 
-  oStr &  operator +=  ( Frag o )  {    //  ---------------------  oStr  op +=
-    char *  p  =  (char*) assert ( realloc ( (char*) s, n + o.n + 1 ) );
-    memcpy ( p+n, o.s, o.n );
-    n     +=  o.n;
-    p[n]  =   '\0';
-    s     =   p;
-    return  * this;  }
+  void  append  ( char n, Str * p )  {    //  ------------------  oStr  append
+    while  ( n -- > 0 )  {  append ( * p ++ );  }  }
 
 
-  static oStr  claim  ( Str s )  {    //  -----------------------  oStr  claim
+  void  append  ( Cat2 & o )  {  append ( 2, & o.a );  }    //  ------  append
+  void  append  ( Cat3 & o )  {  append ( 3, & o.a );  }    //  ------  append
+  void  append  ( Cat4 & o )  {  append ( 4, & o.a );  }    //  ------  append
+
+
+  static oStr  claim  ( Str o )  {    //  -----------------------  oStr  claim
     //  return an oStr that owns s.  s must be an unowned, malloc()ed string.
-    oStr  rv;    rv.s=s.s;    rv.n=s.n();    return rv;  }
+    oStr  rv;    rv.s=o.s;    rv.n=o.n;    return  rv;  }
+
+
+  Str  leak  ()  {    //  ----------------------------------------  oStr  leak
+    Str  rv  =  * this;  n=0;  s=nullptr;  return  rv;  }
+
+
+  char *  realloc  ( cint j )  {    //  -----------------------  oStr  realloc
+    char *  p  =  (char*) :: realloc ( (char*) s, j );
+    if  ( p )  {  if(j){p[j-1]='\0';};  s=p;  return  p;  }
+    fprintf ( stderr, "oStr  realloc failed\n" );  abort();  }
 
 
 };    //  end  struct  oStr  ------------------------------  end  struct  oStr
@@ -319,62 +246,16 @@ struct  oStr  :  mStr   {    //  xxos  -------------------------  struct  oStr
 
 
 
-struct  Concat  {    //  xxco  --------------------------------  class  Concat
-
-  oStr  s;
-
-  Concat  ( Frag o )  :  s(o)  {}    //  -----------------------  Concat  ctor
-
-  operator Frag          ()  const  {  return  s;  }    //  Concat  cast  Frag
-  operator Str           ()  const  {  return  s;  }    //  Concat  cast  Str
-  operator oStr          ()  const  {  return  s;  }    //  Concat  cast  oStr
-  bool  operator ==  ( Str o )  const  {  return  s == o.s;  }    //  --------
-  Concat &  operator +   ( Frag o )  {  s  +=  o;  return  * this;  }    //  -
-  Concat &  operator +=  ( Frag o )  {  s  +=  o;  return  * this;  }    //  -
-
-
-};    //  end  struct  Concat
-
-
-Concat  mFrag :: operator +  ( Frag & o )  const  {    //  ------  mFrag  op +
-  //  written as three statements to (1) avoid infinite recursion, and
-  //  (2) allow named return value optimization.
-  Concat rv (*this);    rv += o;    return rv;  }
-
-
-Concat  mStr :: operator +  ( Frag o )  const  {    //  ----------  mStr  op +
-    return  ((Frag)*this) + o;  }
-
-
-Concat  mStr :: operator +  ( str o )  const  {    //  -----------  mStr  op +
-    return  ((Frag)*this) + o;  }
-
-
-Concat  mStr :: operator +  ( Str  o )  const  {    //  ----------  mStr  op +
-    return  ((Frag)*this) + o;  }
-
-
-Concat  operator +  ( str a, Frag b )  {    //  --------------------  ::  op +
-  return  Frag(a) + b;  }
-
-
-Concat  operator +  ( str a, Str b )  {    //  ---------------------  ::  op +
-  return  Frag(a) + b;  }
-
-
-//  end  struct  Concat  --------------------------------  end  struct  Concat
-
-
-
-
 struct  Argv  {    //  xxar  -----------------------------------  struct  Argv
 
 
-  str *  p  =  nullptr;
+  mstr *  p  =  nullptr;    //  nullptr terminated mstr[]
 
 
   Argv  ()  {}    //  --------------------------------------------  Argv  ctor
-  Argv  ( str * const p )  :  p(p)  {}
+  Argv  ( mstr *  p )  :  p( p )          {}
+  Argv  ( char ** p )  :  p( (mstr*) p )  {}    //  unsafe const kludge
+  Argv  ( str *   p )  :  p( (mstr*) p )  {}    //  unsafe const kludge
 
 
   Argv &  operator |=  ( const Argv & o )  {    //  -------------  Argv  op |=
@@ -415,11 +296,11 @@ struct  Argv  {    //  xxar  -----------------------------------  struct  Argv
     return  * ( ( * this ) + n );  }
 
 
-  oStr  concat  ( Frag sep = "  " )  const  {    //  -----------  Argv  concat
+  oStr  concat  ( Str sep = "  " )  const  {    //  -----------  Argv  concat
     Argv  o  ( * this );
     oStr  rv;
-    if ( *(o.p) )  {  rv  +=  * o;    o++;  }
-    for  (  ;  *(o.p)  ;  o++  )  {  rv  +=  sep;    rv  +=  * o;  }
+    if ( *(o.p) )  {  rv .append(*o);  o++;  }
+    for  (  ;  *(o.p)  ;  o++  )  {  rv.append(sep);  rv.append(*o);  }
     return  rv;  }
 
 
@@ -429,17 +310,24 @@ struct  Argv  {    //  xxar  -----------------------------------  struct  Argv
     return  nullptr;  }
 
 
+  int  len  ()  const  {    //  -----------------------------------  Argv  len
+    int  n  =  0;  while  ( (*this)[n].s )  {  n ++;  }
+    return  n;  }
+
+
   void  print  ( Str s )  const  {    //  -----------------------  Argv  print
     for  (  Argv o (*this)  ;  o  &&  o.p[0]  ;  o++  )  {
-      printe  ( "%s%s\n", s.s, o[0].s );  }  }
+      fprintf  ( stderr, "%s%s\n", s.s, o[0].s );  }  }
 
 
 };    //  end  struct  Argv  ------------------------------  end  struct  Argv
 
 
+
+
 //  str.cpp  -  Parke's string library.
 //
-//  Copyright (c) 2021 Parke Bostrom, parke.nexus at gmail.com
+//  Copyright (c) 2022 Parke Bostrom, parke.nexus at gmail.com
 //
 //  This program is free software: you can redistribute it and/or
 //  modify it under the terms of version 3 of the GNU General Public
