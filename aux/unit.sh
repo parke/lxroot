@@ -1,7 +1,7 @@
 #! /bin/bash
 
 
-#  unit.sh  version  20220822
+#  unit.sh  version  20221217
 
 
 set  -o errexit
@@ -349,17 +349,17 @@ test_fakeroot  ()  {    #  ------------------------------------  test_fakeroot
 
   env1=(  env  -  )  lxr1=()  cmd1=()
 
-  run1  '0  1'    ./lxr      nr  --  /bin/sh -c 'echo $FAKEROOTDONTTRYCHOWN'
-  run1  '0  1'    ./lxr  -w  nr  --  /bin/sh -c 'echo $FAKEROOTDONTTRYCHOWN'
-  run1  '0  1'    ./lxr  -r  nr  --  /bin/sh -c 'echo $FAKEROOTDONTTRYCHOWN'
+  run1  '0  1'     ./lxr      nr  --  /bin/sh -c 'echo $FAKEROOTDONTTRYCHOWN'
+  run1  '0  1'     ./lxr  -w  nr  --  /bin/sh -c 'echo $FAKEROOTDONTTRYCHOWN'
+  run1  '0  1'     ./lxr  -r  nr  --  /bin/sh -c 'echo $FAKEROOTDONTTRYCHOWN'
 
-  run1  ''        ./lxr      nr  --  fakeroot  true
-  run1  ''        ./lxr  -r  nr  --  fakeroot  true
-  run1  '1'       ./lxr      nr  --  fakeroot  false
-  run1  '1'       ./lxr  -r  nr  --  fakeroot  false
+  run1  ''         ./lxr      nr  --  fakeroot  true
+  run1  ''         ./lxr  -r  nr  --  fakeroot  true
+  run1  '1'        ./lxr      nr  --  fakeroot  false
+  run1  '1'        ./lxr  -r  nr  --  fakeroot  false
 
-  run1  "$UID"    ./lxr  nr  --  id  -u
-  run1  '0  0'    ./lxr  nr  --  fakeroot  id  -u
+  run1  "0  $UID"  ./lxr  nr  --  id  -u
+  run1  '0  0'     ./lxr  nr  --  fakeroot  id  -u
 
   return  ;  }
 
