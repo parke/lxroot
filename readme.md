@@ -65,14 +65,14 @@ various Linux distributions.  The below table summaries the types of
 Lxroot-worlds that I regularly create and/or use.  The distros are
 ordered from most commonly used (by me) to least commonly used.
 
-|  Base distro           |  Can create world?  |  Can install packages?        |  Can build packages?  |
-|  :--                   |  :-:                |  :-:                          |  :-:                  |
-|  Debian, Ubuntu, Mint  |  Yes, but tricky    |  Yes, via `fakeroot` + `apt`  |  Probably?            |
-|  Alpine                |  Yes, very easy     |  Yes, via `apk`               |  Probably?            |
-|  Flatpak               |  Yes, see note      |  Yes, via `flatpak`           |  Probably?            |
-|  Arch                  |  Yes, easy          |  Yes, via `pacman`            |  Probably?            |
-|  Arch AUR              |  Yes, same as Arch  |  Not applicable.              |  Probably?            |
-|  Void                  |  Probably?          |  Probably?                    |  Probably?            |
+|  Base distro           |  Can create world?   |  Can install packages?         |  Can build packages?  |
+|  :--                   |  :-:                 |  :-:                           |  :-:                  |
+|  Debian, Ubuntu, Mint  |  Yes, but tricky.    |  Yes, via `fakeroot` + `apt`.  |  Probably?            |
+|  Alpine                |  Yes, very easy.     |  Yes, via `apk`.               |  Probably?            |
+|  Flatpak               |  Yes, see note.      |  Yes, via `flatpak`.           |  Probably?            |
+|  Arch                  |  Yes, easy.          |  Yes, via `pacman`.            |  Probably?            |
+|  Arch AUR              |  Yes, same as Arch.  |  Not applicable.               |  Probably?            |
+|  Void                  |  Probably?           |  Probably?                     |  Probably?            |
 
 Note: To install Flatpak packages, I create an Alpine Linux
 Lxroot-world, and then run `flatpak` in that world to install and run
