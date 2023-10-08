@@ -65,18 +65,16 @@ various Linux distributions.  The below table summaries the types of
 Lxroot-worlds that I regularly create and/or use.  The distros are
 ordered from most commonly used (by me) to least commonly used.
 
-|  Base distro           |  Can create world?   |  Can install packages?         |  Can build packages?  |
-|  :--                   |  :-:                 |  :-:                           |  :-:                  |
-|  Debian, Ubuntu, Mint  |  Yes, but tricky.    |  Yes, via `fakeroot` + `apt`.  |  Probably?            |
-|  Alpine                |  Yes, very easy.     |  Yes, via `apk`.               |  Probably?            |
-|  Flatpak               |  Yes, see note.      |  Yes, via `flatpak`.           |  Probably?            |
-|  Arch                  |  Yes, easy.          |  Yes, via `pacman`.            |  Probably?            |
-|  Arch AUR              |  Yes, same as Arch.  |  Not applicable.               |  Probably?            |
-|  Void                  |  Probably?           |  Probably?                     |  Probably?            |
+|  Base distro           |  Create world with     |  Install binary packages with  |  Can build packages?  |
+|  :--                   |  :-:                   |  :-:                           |  :-:                  |
+|  Debian, Ubuntu, Mint  |  [`mk-deb.sh`](https://github.com/parke/lxroot/blob/master/aux/mk-deb.sh)  |  `fakeroot` and `apt`          |  Probably?            |
+|  Alpine                |  `mk-alpine.sh`  (1)   |  `apk`                         |  Probably?            |
+|  Flatpak               |  `mk-alpine.sh`  (1)   |  `flatpak`                     |  Probably?            |
+|  Arch                  |  `mk-arch.sh`  (1)     |  `pacman`                      |  Probably?            |
+|  Arch AUR              |  `mk-arch.sh`  (1)     |  (n/a)                         |  Probably?            |
+|  Void                  |  Create by hand?  (2)  |  `xbps-install`?  (2)          |  Probably?            |
 
-Note: To install Flatpak packages, I create an Alpine Linux
-Lxroot-world, and then run `flatpak` in that world to install and run
-the Flatpak packages themselves.
+Notes:  (1) I have not yet published `mk-alpine.sh` and `mk-arch.sh`.  (2) It has been a long time since I used Void Linux inside Lxroot, but there is a good chance that XBPS will "just work" inside Lxroot.
 
 (Aside: Previously, I used a separate tool called `vland` to create and
 work with Lxroot environments.  However, `vland` is now obsolete and
