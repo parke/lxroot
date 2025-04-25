@@ -7,7 +7,10 @@
 
 `lxroot` allows a non-root user to easily and safely create a "chroot-style" virtual software environment (via Linux namespaces), and then run one or more programs inside that environment.
 
-
+### Requirements 
+1. Linux kernel
+2. all types of namespaces enabled https://github.com/parke/lxroot/issues/26#issuecomment-2827862361 you can check them with```
+zcat /proc/config.gz | grep CONFIG_NAMESPACES```
 ###  Project Status
 
 As of September 2023, Lxroot is still under intermittent development.
