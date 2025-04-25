@@ -8,9 +8,13 @@
 `lxroot` allows a non-root user to easily and safely create a "chroot-style" virtual software environment (via Linux namespaces), and then run one or more programs inside that environment.
 
 ### Requirements 
-1. Linux kernel
-2. all types of namespaces enabled https://github.com/parke/lxroot/issues/26#issuecomment-2827862361 you can check them with```
-zcat /proc/config.gz | grep CONFIG_NAMESPACES```
+
+1. Lxroot requires Linux kernel version 3.9 or later.  (And preferably version 5.11 or later, see `man user_namespaces` for details.)
+2. The kernel must have been compiled with unpriveleged namespace support.  (See [related discussion](https://github.com/parke/lxroot/issues/26#issuecomment-2827862361).)
+3. Unpriveleged namespace support must also be [enabled at runtime](https://www.baeldung.com/linux/kernel-enable-user-namespaces).
+
+As of 2025 (and possibly even since 2020), most common Linux distributions by default both (a) support unpriveleged namespaces and (b) enable them by default.
+
 ###  Project Status
 
 As of September 2023, Lxroot is still under intermittent development.
